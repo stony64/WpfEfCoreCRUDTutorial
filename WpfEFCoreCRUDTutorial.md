@@ -84,8 +84,9 @@ So bildet `PersonViewModel` das Bindeglied zwischen UI und Service-Schicht und f
 - `ObservableCollection<Address> Addresses` und `Address? SelectedAddress`,
 - Formular-Properties wie `Street`, `PostalCode`, `City`, `Country`,
 - eine interne Referenz auf die aktuelle Person (z.B. PersonId), die über `SetCurrentPersonAsync(Person? person)` gesetzt wird,
+- eine Anzeige-Property wie `CurrentPersonName`, die im Detailfenster den Namen der aktuellen Person zeigt,
 - Async-Commands `CreateAddressCommand`, `UpdateAddressCommand`, `DeleteAddressCommand`,
-- eine Methode `SetCurrentPersonAsync(Person? person)`, die die aktuelle Person-ID setzt und `Addresses` per Datenbankabfrage auf die Adressen dieser Person aktualisiert.
+- eine Methode `SetCurrentPersonAsync(Person? person)`, die die aktuelle Person-ID und `CurrentPersonName` setzt und `Addresses` per Datenbankabfrage auf die Adressen dieser Person aktualisiert.
 
 Damit bildet das ViewModel die „n“-Seite der 1:n-Beziehung ab und ist Grundlage für die Adressbearbeitung im Detailfenster. Wenn das ViewModel als Singleton registriert ist, bleibt sein Zustand auch beim Schließen und erneuten Öffnen des Detailfensters erhalten.
 
@@ -111,10 +112,11 @@ Zusätzlich gibt es einen Button „Adressdetails“, der ein `PersonAddressDeta
 ## 15. PersonAddressDetailsWindow.xaml als Detail-View der 1:n-Beziehung
 
 `PersonAddressDetailsWindow` bindet an `AddressViewModel`, das per Konstruktor-Injection gesetzt wird. In der XAML:
-- stehen oben Labels und TextBoxen für `Street`, `PostalCode`, `City`, `Country`,
+- zeigt ein Kopfbereich oben z.B. „Adressen für: {CurrentPersonName}“ an,
+- darunter stehen Labels und TextBoxen für `Street`, `PostalCode`, `City`, `Country`,
 - daneben Buttons „Neu“, „Speichern“, „Löschen“ mit Bindings auf die Adress-Commands,
 - darunter eine ListBox mit `ItemsSource="{Binding Addresses}"` und `SelectedItem="{Binding SelectedAddress}"`,
-- unten eine Statuszeile für meldende Texte.
+- unten eine Statuszeile für meldende Texte (`StatusMessage`).
 
 Dieses Fenster bildet die Adressseite der 1:n-Beziehung visuell ab und erlaubt CRUD-Operationen für die Adressen der aktuell gewählten Person.
 
@@ -123,7 +125,7 @@ Dieses Fenster bildet die Adressseite der 1:n-Beziehung visuell ab und erlaubt C
 Beim Klick auf „Adressdetails“ im `MainWindow`:
 - prüfst du, ob eine `SelectedPerson` vorhanden ist,
 - holst dir aus DI das (als Singleton registrierte) `AddressViewModel`,
-- rufst `SetCurrentPersonAsync(SelectedPerson)` auf, damit die Adressen der gewählten Person geladen werden,
+- rufst `SetCurrentPersonAsync(SelectedPerson)` auf, damit die Adressen der gewählten Person geladen und `CurrentPersonName` gesetzt werden,
 - erzeugst per DI ein neues `PersonAddressDetailsWindow` (Transient), setzt dessen `Owner` und rufst `Show()` oder `ShowDialog()` auf.
 
 Die technische Registrierung von ViewModel und Fenster im DI-Container erfolgt, wie in Abschnitt 8 beschrieben, im `App.xaml.cs`.
@@ -136,7 +138,18 @@ Die technische Registrierung von ViewModel und Fenster im DI-Container erfolgt, 
 
 Dadurch entstehen Tabellen für `People` und `Addresses` inklusive Fremdschlüssel und 1:n-Beziehung. Wird die Datenbank später gelöscht, kannst du sie jederzeit über `Update-Database` neu aufbauen. Falls du eine `IDesignTimeDbContextFactory<AppDbContext>` verwendest, sorgt sie dafür, dass die Migrationen den DbContext mit der gleichen Konfiguration wie zur Laufzeit erstellen können.
 
-## 18. Anwendung starten und 1:n-Beziehung testen
+## 18. Design-Time-DbContext für Migrationen (Data/DesignTimeDbContextFactory.cs)
+
+Da diese WPF-Anwendung den DbContext zur Laufzeit über den Generic Host und Dependency Injection konfiguriert, benötigen die EF-Core-Tools (z.B. `Add-Migration`, `Update-Database`) eine spezielle Design-Time-Fabrik, um den `AppDbContext` auch ohne laufenden Host instanziieren zu können. Ohne diese Fabrik erscheint typischerweise ein Fehler wie „Unable to create a 'DbContext' of type 'AppDbContext' … Unable to resolve service for type 'DbContextOptions<AppDbContext>' …“.
+
+Lege im Ordner `Data` eine Klasse `DesignTimeDbContextFactory` an, die `IDesignTimeDbContextFactory<AppDbContext>` implementiert und den DbContext mit dem ConnectionString aus `appsettings.json` erstellt. So können die EF-Core-Tools den `AppDbContext` zur Design-Time korrekt erzeugen, ohne auf den WPF-Einstiegspunkt oder den Generic Host angewiesen zu sein.
+
+Typischer Ablauf nach dem Hinzufügen der Factory:
+- Projekt neu bauen
+- vorhandene Migrationen (z.B. `InitialCreate`) mit `Update-Database` anwenden
+- neue Migrationen wie gewohnt mit `Add-Migration` erzeugen
+
+## 19. Anwendung starten und 1:n-Beziehung testen
 
 Starte die Anwendung, lege im `MainWindow` einige Personen an und wähle einen Eintrag aus. Öffne das `PersonAddressDetailsWindow`, füge Adressen hinzu, bearbeite oder lösche sie und prüfe, dass:
 - jede Person ihre eigenen Adressen hat,
