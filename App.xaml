@@ -1,9 +1,85 @@
 ﻿<Application x:Class="WpfEfCoreCRUDTutorial.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:WpfEfCoreCRUDTutorial"
-             StartupUri="MainWindow.xaml">
+             mc:Ignorable="d">
+
+    <!--
+     ════════════════════════════════════════════════════════════════════════════════
+     WPF APPLICATION.XAML – GLOBALE ANWENDUNGSKONFIGURATION
+     ════════════════════════════════════════════════════════════════════════════════
+     
+     VERANTWORTLICHKEIT:
+     • WPF Application Lifecycle (ohne StartupUri → Start erfolgt in App.xaml.cs via DI/Host)
+     • Globale Resources (Brushes, Styles, Converter)
+     • Namespace-Definitionen für Custom Controls
+     • Designer-Support (mc:Ignorable, d:Design*)
+
+     WARUM KEIN StartupUri="MainWindow.xaml"?
+     → Dependency Injection + Generic Host werden in App.xaml.cs.OnStartup() konfiguriert.
+       Dort wird MainWindow über den DI-Container erstellt (inkl. ViewModel).
+    -->
+
     <Application.Resources>
+        <!--
+         ════════════════════════════════════════════════════════════════════════════════
+         GLOBALE RESOURCES – APPLICATION-WIDE STYLING
+         ════════════════════════════════════════════════════════════════════════════════
          
+         VORTEILE:
+         • Konsistente Farben/Styles über alle Windows
+         • Performance: WPF cached Resources
+         • Wartbarkeit: Design-Änderungen zentral an einer Stelle
+        -->
+
+        <!-- 1️⃣ DESIGN SYSTEM: Primary Color Palette (Enterprise Branding) -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#0078D4" />
+        <SolidColorBrush x:Key="PrimaryColorHover" Color="#106EBE" />
+        <SolidColorBrush x:Key="PrimaryColorDisabled" Color="#B3D9FF" />
+
+        <!-- 2️⃣ SECONDARY COLORS -->
+        <SolidColorBrush x:Key="SuccessColor" Color="#107C10" />
+        <SolidColorBrush x:Key="WarningColor" Color="#FF8C00" />
+        <SolidColorBrush x:Key="ErrorColor" Color="#D13438" />
+
+        <!-- 3️⃣ GLOBAL BUTTON STYLE (Enterprise Standard)
+             Gilt für alle Buttons, sofern kein spezieller Style gesetzt wird. -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Padding" Value="15,8" />
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="MinWidth" Value="90" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <!-- Hover-Effekt (UX-Verbesserung) -->
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryColorHover}" />
+                </Trigger>
+                <!-- Disabled-State -->
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="{StaticResource PrimaryColorDisabled}" />
+                    <Setter Property="Opacity" Value="0.6" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 4️⃣ STATUSBAR STYLE (konsistente Darstellung der Statusmeldungen) -->
+        <Style TargetType="StatusBarItem">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+        <!-- 5️⃣ TEXTBOX STYLE (Enterprise Input)
+             Basierend auf dem Standard-TextBox-Style, erweitert um Padding/Margin. -->
+        <Style TargetType="TextBox"
+               BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Margin" Value="5" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
     </Application.Resources>
 </Application>

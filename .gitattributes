@@ -1,26 +1,26 @@
 ###############################################################################
-# Set default behavior to automatically normalize line endings.
+# Standardverhalten: Zeilenenden automatisch normalisieren
+# (ermöglicht konsistente Line-Endings zwischen Windows/Linux/Mac)
 ###############################################################################
 * text=auto
 
 ###############################################################################
-# Set default behavior for command prompt diff.
-#
-# This is need for earlier builds of msysgit that does not have it on by
-# default for csharp files.
-# Note: This is only used by command line
+# Optional: Spezielles Diff-Verhalten für C#-Dateien aktivieren
+# (schönere Diffs im Terminal für *.cs)
 ###############################################################################
-#*.cs     diff=csharp
+*.cs     diff=csharp
 
 ###############################################################################
-# Set the merge driver for project and solution files
+# Merge-Verhalten für Projekt- und Lösungsdateien
 #
-# Merging from the command prompt will add diff markers to the files if there
-# are conflicts (Merging from VS is not affected by the settings below, in VS
-# the diff markers are never inserted). Diff markers may cause the following 
-# file extensions to fail to load in VS. An alternative would be to treat
-# these files as binary and thus will always conflict and require user
-# intervention with every merge. To do so, just uncomment the entries below
+# Beim Mergen über die Kommandozeile können bei Konflikten Diff-Marker
+# in diese Dateien geschrieben werden. Visual Studio kann solche Dateien
+# u. U. nicht mehr laden.
+#
+# Alternative:
+# - Diese Dateien als binär behandeln → sie werden bei jedem Merge
+#   als Konflikt markiert und müssen manuell aufgelöst werden.
+#   (Einfach die Einträge unten einkommentieren.)
 ###############################################################################
 #*.sln       merge=binary
 #*.csproj    merge=binary
@@ -36,20 +36,21 @@
 #*.wwaproj   merge=binary
 
 ###############################################################################
-# behavior for image files
+# Verhalten für Bilddateien
 #
-# image files are treated as binary by default.
+# Bilder werden standardmäßig als binär behandelt.
+# Falls nötig, können hier spezielle Regeln ergänzt werden.
 ###############################################################################
 #*.jpg   binary
 #*.png   binary
 #*.gif   binary
 
 ###############################################################################
-# diff behavior for common document formats
-# 
-# Convert binary document formats to text before diffing them. This feature
-# is only available from the command line. Turn it on by uncommenting the 
-# entries below.
+# Diff-Verhalten für gängige Dokumentformate
+#
+# Mit diesen Einstellungen können binäre Dokumente vor dem Diffen in Text
+# konvertiert werden (nur Kommandozeile, in VS normalerweise nicht genutzt).
+# Aktivierung durch Einkommentieren der Einträge.
 ###############################################################################
 #*.doc   diff=astextplain
 #*.DOC   diff=astextplain
