@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Models/Adress.cs
+using System.ComponentModel.DataAnnotations;
 
 namespace WpfEfCoreCRUDTutorial.Models;
 

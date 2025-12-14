@@ -1,3 +1,4 @@
+// AssemblyInfos.cs
 using System.Windows;
 
 [assembly: ThemeInfo(

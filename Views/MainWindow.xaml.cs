@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿// Views/MainWindow.xaml.cs
+using Microsoft.Extensions.DependencyInjection;
 using System.Windows;
 using WpfEfCoreCRUDTutorial.ViewModels;
 

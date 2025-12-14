@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// Data/AppDbContext.cs
+using Microsoft.EntityFrameworkCore;
 using WpfEfCoreCRUDTutorial.Models; // Domänen-Entitäten (z.B. Person, Address)
 
 namespace WpfEfCoreCRUDTutorial.Data;

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Models/Person.cs
+using System.ComponentModel.DataAnnotations;
 
 namespace WpfEfCoreCRUDTutorial.Models;
 

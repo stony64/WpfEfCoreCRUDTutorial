@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿// ViewModesl/MainViewModel.cs
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace WpfEfCoreCRUDTutorial.ViewModels;

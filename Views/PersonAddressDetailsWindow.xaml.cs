@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿// Views/PersonAddressDetailsWindow.xaml.cs
+using System.Windows;
 using WpfEfCoreCRUDTutorial.ViewModels;
 
 namespace WpfEfCoreCRUDTutorial;

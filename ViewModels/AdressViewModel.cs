@@ -1,4 +1,4 @@
-﻿// AddressViewModel.cs
+﻿// View/Models/AddressViewModel.cs
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;

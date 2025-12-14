@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿// ViewModels/PersinViewModel.cs
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using WpfEfCoreCRUDTutorial.Commands;
