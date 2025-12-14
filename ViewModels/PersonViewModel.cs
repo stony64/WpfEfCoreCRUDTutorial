@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using WpfEfCoreCRUDTutorial.Commands;
 using WpfEfCoreCRUDTutorial.Models;
 using WpfEfCoreCRUDTutorial.Services;
@@ -10,16 +8,17 @@ using WpfEfCoreCRUDTutorial.Services;
 namespace WpfEfCoreCRUDTutorial.ViewModels;
 
 /// <summary>
-/// ViewModel für das MainWindow:
-/// - Hält die angezeigten Personen
-/// - Nimmt Eingaben aus TextBoxen entgegen (Name, Email)
+/// ViewModel für die Personenverwaltung (Master-Teil im Master-Detail-Szenario).
+/// - Hält die Liste aller Personen
+/// - Nimmt Eingaben für Name/Email entgegen
 /// - Bietet Commands für Laden, Erstellen, Aktualisieren, Löschen
-/// Das Window selbst kennt nur dieses ViewModel als DataContext und bleibt damit „dumm“ im Sinne von MVVM.
+/// Die Adressen zur ausgewählten Person werden im AddressViewModel verwaltet und
+/// über das MainViewModel synchronisiert.
 /// </summary>
 public class PersonViewModel : INotifyPropertyChanged
 {
     /// <summary>
-    /// Fachlicher Zugriffspunkt auf die Datenbank.
+    /// Fachlicher Zugriffspunkt auf die Personen-Datenbankoperationen.
     /// Das ViewModel kennt nur den Service und muss keine EF-Core-Details verwenden.
     /// </summary>
     private readonly PersonService _personService;
@@ -45,7 +44,6 @@ public class PersonViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// Interne Sammlung der aktuell geladenen Personen.
-    /// Wird über die öffentliche Property People an die View gebunden.
     /// </summary>
     private ObservableCollection<Person> _people = new();
 
@@ -71,9 +69,11 @@ public class PersonViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// Aktuell ausgewählte Person in der UI.
-    /// Wird an SelectedItem der ListBox gebunden.
+    /// Wird an SelectedItem der Personen-ListBox gebunden.
     /// Beim Setzen werden die Eingabefelder (Name/Email) und die Statuszeile synchronisiert,
     /// sodass der Benutzer sofort sieht, welche Person gerade bearbeitet wird.
+    /// Das AddressViewModel wird über das MainViewModel informiert (dort via PropertyChanged-Subscription),
+    /// nicht direkt von hier aus.
     /// </summary>
     public Person? SelectedPerson
     {
@@ -97,6 +97,10 @@ public class PersonViewModel : INotifyPropertyChanged
                 Email = string.Empty;
                 StatusMessage = "📋 Bitte Person auswählen";
             }
+
+            // WICHTIG:
+            // Die Synchronisation der Adressen (AddressViewModel.SetCurrentPersonAsync)
+            // passiert im MainViewModel, das sich auf PropertyChanged von PersonViewModel registriert.
         }
     }
 
@@ -144,7 +148,7 @@ public class PersonViewModel : INotifyPropertyChanged
     /// <summary>
     /// Interner Status-Text, der in der StatusBar angezeigt wird.
     /// </summary>
-    private string _statusMessage = "Bereit";
+    private string _statusMessage = "Bereit (Personen)";
 
     /// <summary>
     /// Statuszeile unten im Fenster (StatusBar).
@@ -161,7 +165,7 @@ public class PersonViewModel : INotifyPropertyChanged
         }
     }
 
-    #endregion
+    #endregion Properties (für Bindings)
 
     #region Commands
 
@@ -188,7 +192,7 @@ public class PersonViewModel : INotifyPropertyChanged
     /// </summary>
     public IAsyncCommand DeleteCommand { get; }
 
-    #endregion
+    #endregion Commands
 
     #region Command-Methoden
 
@@ -198,7 +202,10 @@ public class PersonViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task LoadAsync()
     {
-        var people = await _personService.GetAllAsync();
+        // Adressen können bei Bedarf mitgeladen werden (includeAddresses = true),
+        // hier reicht aber in der Regel das Laden der Personen,
+        // weil das AddressViewModel seine Daten separat lädt.
+        var people = await _personService.GetAllAsync(includeAddresses: false);
         People = new ObservableCollection<Person>(people);
         StatusMessage = $"📋 {People.Count} Personen geladen";
     }
@@ -272,9 +279,10 @@ public class PersonViewModel : INotifyPropertyChanged
         StatusMessage = $"🗑️ Gelöscht: {SelectedPerson.Name}";
         Name = string.Empty;
         Email = string.Empty;
+        SelectedPerson = null;
     }
 
-    #endregion
+    #endregion Command-Methoden
 
     #region INotifyPropertyChanged
 
@@ -293,5 +301,5 @@ public class PersonViewModel : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
-    #endregion
+    #endregion INotifyPropertyChanged
 }

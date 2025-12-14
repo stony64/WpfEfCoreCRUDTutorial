@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Windows;
 using WpfEfCoreCRUDTutorial.Data;
 using WpfEfCoreCRUDTutorial.Services;
@@ -15,9 +14,10 @@ namespace WpfEfCoreCRUDTutorial;
 /// WPF Application Bootstrapper (.NET 10).
 /// Verantwortlich für:
 /// - Aufbau des Generic Hosts (DI, Logging, Configuration)
-/// - Registrierung von DbContext, Services und ViewModels
+/// - Registrierung von DbContext, Services, ViewModels und Fenstern
 /// - Erzeugung und Start des MainWindow über DI
-/// Damit verhält sich die WPF-App infrastrukturell ähnlich wie eine ASP.NET-Core-Anwendung.
+/// Durch die Verwendung des Generic Host verhält sich die WPF-App
+/// infrastrukturell ähnlich wie eine ASP.NET-Core-Anwendung.
 /// </summary>
 public partial class App : Application
 {
@@ -31,7 +31,7 @@ public partial class App : Application
     /// </summary>
     public static IServiceProvider? Services { get; private set; }
 
-    #endregion
+    #endregion GLOBAL SERVICES
 
     #region WPF STARTUP
 
@@ -54,7 +54,7 @@ public partial class App : Application
             // und ermöglicht es, Konfiguration und Dienste an einer zentralen Stelle zu bündeln.
             var builder = Host.CreateApplicationBuilder();
 
-            #endregion
+            #endregion 1. HOST BUILDER (Generic Host)
 
             #region 2. CONFIGURATION LADEN
 
@@ -66,21 +66,17 @@ public partial class App : Application
                 optional: false,
                 reloadOnChange: true); // Änderungen zur Laufzeit nachladen (v.a. im Development nützlich)
 
-            // Optional könntest du hier z.B. appsettings.Development.json hinzufügen,
-            // um zwischen Entwicklungs- und Produktionsumgebung zu unterscheiden.
-
-            #endregion
+            #endregion 2. CONFIGURATION LADEN
 
             #region 3. LOGGING
 
             // Einfaches Console-Logging mit Mindestlevel Warning.
             // Ziel: Nur wichtige Meldungen im „Produktiv“-Betrieb loggen und die Ausgabe übersichtlich halten.
-            // Für Debug-Szenarien könnte der Level z.B. auf Information oder Debug gesetzt werden.
             builder.Services.AddLogging(logging =>
                 logging.AddConsole()
                        .SetMinimumLevel(LogLevel.Warning));
 
-            #endregion
+            #endregion 3. LOGGING
 
             #region 4. EF CORE + RETRY POLICY
 
@@ -96,44 +92,78 @@ public partial class App : Application
                         maxRetryDelay: TimeSpan.FromSeconds(10), // max. 10 Sekunden Verzögerung
                         errorNumbersToAdd: null)));              // Standard-Fehlercodes verwenden
 
-            #endregion
+            #endregion 4. EF CORE + RETRY POLICY
 
-            #region 4b. APPLICATION SERVICES & VIEWMODELS
+            #region 5. APPLICATION SERVICES
 
-            // Service-Schicht für Person-Operationen (CRUD auf Person über EF Core).
+            // Service-Schicht für Person- und Adress-Operationen (CRUD auf Person/Address über EF Core).
             // Scoped: Pro Scope (hier typischerweise pro WPF-App-Lebensdauer) eine Instanz,
             // passend zur Lebensdauer des DbContext.
             builder.Services.AddScoped<PersonService>();
 
-            // ViewModel für das MainWindow (enthält UI-Logik und Bindings).
-            // Transient: Für jedes angeforderte MainWindow eine neue ViewModel-Instanz.
-            builder.Services.AddTransient<PersonViewModel>();
+            #endregion 5. APPLICATION SERVICES
+
+            #region 6. VIEWMODELS REGISTRIEREN
+
+            // ViewModel für Personen (Master).
+            // Singleton: Eine Instanz pro App-Lebensdauer, sodass Auswahl/Zustand
+            // im gesamten UI konsistent bleibt.
+            builder.Services.AddSingleton<PersonViewModel>();
+
+            // ViewModel für Adressen (Detail).
+            // Ebenfalls Singleton, damit MainWindow und UserDetailsWindow
+            // dasselbe AddressViewModel teilen und die aktuell ausgewählte Person
+            // samt Adressen übergeben werden kann.
+            builder.Services.AddSingleton<AddressViewModel>();
+
+            // Zentrales MainViewModel, das PersonViewModel und AddressViewModel zusammenspielt.
+            // Singleton, da es den globalen UI-Zustand koordiniert.
+            builder.Services.AddSingleton<MainViewModel>();
+
+            #endregion 6. VIEWMODELS REGISTRIEREN
+
+            #region 7. WINDOWS REGISTRIEREN
 
             // Registrierung des MainWindow selbst.
-            // Der DI-Container injiziert automatisch das benötigte PersonViewModel in den Konstruktor.
-            builder.Services.AddTransient<MainWindow>();
+            // Der DI-Container injiziert automatisch das benötigte MainViewModel in den Konstruktor.
+            // Singleton, weil es genau ein Hauptfenster geben soll.
+            builder.Services.AddSingleton<MainWindow>();
 
-            #endregion
+            // Registrierung des Detailfensters für Benutzerdaten (Adressen).
+            // Der DI-Container injiziert automatisch das AddressViewModel in UserDetailsWindow.
+            // Ebenfalls Singleton, damit immer dieselbe Instanz mit demselben AddressViewModel
+            // verwendet wird, solange die App läuft.
+            builder.Services.AddTransient<UserDetailsWindow>();
 
-            #region 5. HOST STARTEN + MAINWINDOW ERZEUGEN
+            #endregion 7. WINDOWS REGISTRIEREN
+
+            #region 8. HOST STARTEN + MAINWINDOW ERZEUGEN
 
             // Host (inkl. DI-Container) aufbauen.
             var host = builder.Build();
             Services = host.Services;
 
             // MainWindow aus dem DI-Container beziehen.
-            // Vorteil: Alle Abhängigkeiten (ViewModel, Services, DbContext) werden automatisch aufgelöst
-            // und sind an einer zentralen Stelle konfiguriert.
+            // Vorteil: Alle Abhängigkeiten (MainViewModel, weitere ViewModels, Services, DbContext)
+            // werden automatisch aufgelöst und sind an einer zentralen Stelle konfiguriert.
             var mainWindow = Services.GetRequiredService<MainWindow>();
+
+            // Zentrales MainViewModel aus dem DataContext holen
+            // (wird im MainWindow-Konstruktor gesetzt) und initialisieren.
+            if (mainWindow.DataContext is MainViewModel mainViewModel)
+            {
+                // Initiale Daten laden (Personenliste, ggf. erste Auswahl).
+                _ = mainViewModel.InitializeAsync();
+            }
 
             // WPF-Fenster anzeigen → ab hier übernimmt der WPF-Dispatcher die Steuerung des UI-Threads.
             mainWindow.Show();
 
-            #endregion
+            #endregion 8. HOST STARTEN + MAINWINDOW ERZEUGEN
         }
         catch (Exception ex)
         {
-            #region 6. GRACEFUL ERROR HANDLING
+            #region 9. GRACEFUL ERROR HANDLING
 
             // Typische Fehlerquellen:
             // - appsettings.json fehlt oder ist syntaktisch fehlerhaft
@@ -150,9 +180,9 @@ public partial class App : Application
             // Sauber beenden, falls die Anwendung nicht korrekt initialisiert werden konnte.
             Shutdown();
 
-            #endregion
+            #endregion 9. GRACEFUL ERROR HANDLING
         }
     }
 
-    #endregion
+    #endregion WPF STARTUP
 }

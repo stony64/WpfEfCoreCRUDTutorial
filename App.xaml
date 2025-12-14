@@ -10,7 +10,7 @@
      ════════════════════════════════════════════════════════════════════════════════
      WPF APPLICATION.XAML – GLOBALE ANWENDUNGSKONFIGURATION
      ════════════════════════════════════════════════════════════════════════════════
-     
+
      VERANTWORTLICHKEIT:
      • WPF Application Lifecycle (ohne StartupUri → Start erfolgt in App.xaml.cs via DI/Host)
      • Globale Resources (Brushes, Styles, Converter)
@@ -27,7 +27,7 @@
          ════════════════════════════════════════════════════════════════════════════════
          GLOBALE RESOURCES – APPLICATION-WIDE STYLING
          ════════════════════════════════════════════════════════════════════════════════
-         
+
          VORTEILE:
          • Konsistente Farben/Styles über alle Windows
          • Performance: WPF cached Resources

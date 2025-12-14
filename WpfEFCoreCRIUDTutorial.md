@@ -2,202 +2,174 @@
 
 # 1. WPF‑Projekt in Visual Studio anlegen (.NET 10)
 
-In diesem Abschnitt erstellst du das Grundgerüst deiner Anwendung: ein leeres WPF‑Projekt auf Basis von .NET 10. Dieses Projekt wird später um EF Core, MVVM und eine SQL‑Server‑Datenbank erweitert.
-
-1. Starte Visual Studio 2026.
-2. Wähle im Startfenster „Neues Projekt erstellen“.
-3. Suche nach dem Projekttyp **„WPF-App (.NET)“** und wähle ihn aus.
-4. Vergib folgende Einstellungen:
-   - **Projektname**: `WpfEfCoreCRUDTutorial`
-   - **Speicherort**: Ein Ordner deiner Wahl
-   - **Lösungsname**: (kann gleich dem Projektnamen sein)
-5. Klicke auf „Weiter“ und wähle als **Ziel-Framework**: `.NET 10.0`.
-6. Erstelle das Projekt und führe einen ersten Start aus (F5), um zu prüfen, dass das leere WPF‑Fenster angezeigt wird.
-
-Zu diesem Zeitpunkt existiert nur ein Standard‑`MainWindow` ohne Datenbankanbindung oder MVVM‑Struktur. Im nächsten Schritt bereitest du die Ordnerstruktur vor, die später für eine saubere Schichtentrennung sorgt.
+Erstelle ein neues WPF‑Projekt auf Basis von .NET 10, das später mit EF Core, MVVM und einer SQL‑Server‑Datenbank mit 1:n‑Beziehung (Person → Adressen) arbeitet. Starte Visual Studio, wähle „WPF-App (.NET)“, nenne das Projekt `WpfEfCoreCRUDTutorial`, setze das Ziel‑Framework auf `.NET 10.0` und prüfe mit F5, dass ein leeres Fenster startet.
 
 ---
 
 # 2. Ordnerstruktur für MVVM vorbereiten
 
-Damit dein Projekt von Anfang an übersichtlich bleibt, legst du eine einfache, aber skalierbare Ordnerstruktur an. Diese Struktur trennt Domänenlogik, Datenzugriff, Services, ViewModels, Views und Commands.
-
-Öffne im Projektmappen-Explorer dein WPF‑Projekt `WpfEfCoreCRUDTutorial` und erstelle unterhalb des Projekts folgende Ordner:
-
-- `Data`
-- `Models`
-- `Services`
-- `ViewModels`
-- `Views` (optional; das vorhandene `MainWindow` kannst du später dorthin verschieben)
-- `Commands`
-
-Die Rollen der Ordner sind:
-
-- **Models**  
-  Enthält die Domänenklassen wie `Person`. Diese Klassen repräsentieren die Daten, die gespeichert und im UI angezeigt werden. [web:300]
-
-- **Data**  
-  Beinhaltet den Entity‑Framework‑Core‑Kontext (`AppDbContext`). Der DbContext kennt die Entitäten aus `Models` und übernimmt das Mapping zur Datenbank. [web:300]
-
-- **Services**  
-  Enthält Serviceklassen wie `PersonService`, die den DbContext kapseln und Methoden wie `GetAllAsync`, `CreateAsync`, `UpdateAsync` und `DeleteAsync` bereitstellen. ViewModels sprechen nur mit Services, nicht direkt mit EF Core. [web:300]
-
-- **ViewModels**  
-  Hier liegen MVVM‑ViewModels wie `PersonViewModel`. Sie stellen Properties und Commands für die Oberfläche bereit und enthalten UI‑nahe Logik. [web:354]
-
-- **Views**  
-  Hier liegen die XAML‑Views (`MainWindow.xaml` und weitere Fenster/Views), die per DataBinding an die ViewModels gebunden werden. [web:354]
-
-- **Commands**  
-  Enthält wiederverwendbare Command‑Implementierungen wie `AsyncRelayCommand` und das Interface `IAsyncCommand`, die von mehreren ViewModels genutzt werden können. [web:438]
-
-Mit dieser Struktur ist das Projekt bereit für den nächsten Schritt: das Hinzufügen der benötigten NuGet‑Pakete für Entity Framework Core 10, den Generic Host und die Konfiguration über `appsettings.json`.
+Lege im Projekt die Ordner `Data`, `Models`, `Services`, `ViewModels`, `Views` und `Commands` an.  
+In `Models` liegen Domänenklassen wie `Person` und `Address`, in `Data` der `AppDbContext`, in `Services` z.B. der `PersonService`, in `ViewModels` u.a. `PersonViewModel`, `AddressViewModel` und `MainViewModel`, in `Views` die XAML‑Fenster (`MainWindow`, `UserDetailsWindow`) und in `Commands` wiederverwendbare Command‑Implementierungen wie `AsyncRelayCommand`.
 
 ---
 
 # 3. NuGet‑Pakete für EF Core 10 und Infrastruktur installieren
 
-Damit deine WPF‑App mit einer SQL‑Server‑Datenbank sprechen und moderne .NET‑10‑Infrastruktur (Generic Host, DI, Konfiguration) nutzen kann, installierst du nun die passenden NuGet‑Pakete.
+Über „NuGet-Pakete verwalten…“ installierst du mindestens:
+- `Microsoft.EntityFrameworkCore.SqlServer`
+- `Microsoft.EntityFrameworkCore.Tools`
+- `Microsoft.Extensions.Hosting`
+- `Microsoft.Extensions.Configuration.Json`
 
-Öffne im Projektmappen-Explorer das Kontextmenü des Projekts `WpfEfCoreCRUDTutorial` und wähle:
-
-- „**NuGet-Pakete verwalten…**“
-
-Wechsle auf den Reiter **„Durchsuchen“** und installiere nacheinander folgende Pakete:
-
-1. **Microsoft.EntityFrameworkCore.SqlServer**  
-   Dieses Paket enthält den SQL‑Server‑Provider für Entity Framework Core 10 und bringt den EF‑Kern gleich mit. Damit kannst du via `UseSqlServer(...)` auf eine MSSQL‑Datenbank (z.B. LocalDB) zugreifen. [web:300]
-
-2. **Microsoft.EntityFrameworkCore.Tools**  
-   Dieses Paket benötigst du, wenn du Migrationen und `update-database` über die Package Manager Console oder die .NET‑CLI verwenden möchtest, um das Datenbankschema aus deinem Modell zu erzeugen und zu aktualisieren. [web:430]
-
-3. **Microsoft.Extensions.Hosting**  
-   Stellt den Generic Host bereit, den du in einer WPF‑App genauso nutzen kannst wie in ASP.NET Core oder Worker‑Services. Darüber konfigurierst du Dependency Injection, Logging und Konfiguration zentral in `App.xaml.cs`. [web:300]
-
-4. **Microsoft.Extensions.Configuration.Json**  
-   Ermöglicht das Einlesen von Konfiguration aus einer `appsettings.json`‑Datei, insbesondere des ConnectionStrings für EF Core, ohne ihn hart im Code zu hinterlegen. [web:410]
-
-Optional, aber empfehlenswert für spätere Erweiterungen:
-
-- **Microsoft.EntityFrameworkCore.Design**  
-  Ergänzt Design‑Time‑Funktionalität (z.B. Scaffolding) und erleichtert manche EF‑Core‑Werkzeuge. [web:430]
-
-- **CommunityToolkit.Mvvm**  
-  Dieses Paket ist für das hier gezeigte, manuell aufgebaute MVVM nicht zwingend nötig, kann aber viel Boilerplate (INotifyPropertyChanged, Commands, DI‑Integration) abnehmen, wenn du das Projekt weiterentwickelst. [web:386]
-
-Nach der Installation dieser Pakete ist dein WPF‑Projekt bereit, Konfigurationswerte aus JSON zu lesen, einen Generic Host mit DI und Logging zu verwenden und mit EF Core 10 gegen eine SQL‑Server‑Datenbank zu arbeiten. [web:300][web:410]
+Optional kommen u.a. `Microsoft.EntityFrameworkCore.Design` und `CommunityToolkit.Mvvm` hinzu. Damit kann die WPF‑App Konfiguration aus JSON lesen, einen Generic Host nutzen und per EF Core auf SQL Server zugreifen.
 
 ---
 
 # 4. Konfiguration mit appsettings.json
 
-In diesem Schritt lagerst du den ConnectionString und weitere Einstellungen in eine Konfigurationsdatei aus, damit sie ohne Rebuild angepasst werden können.
-
-1. Lege im Projektstamm eine neue Datei mit dem Namen `appsettings.json` an (der vollständige Inhalt liegt im Repository).
-2. Öffne die Eigenschaften der Datei und stelle Folgendes ein:
-   - **Buildvorgang**: `Inhalt`  
-   - **In Ausgabeverzeichnis kopieren**: `Kopieren, wenn neuer`  
-
-Durch diese Einstellungen wird die Datei beim Build ins Ausgabeverzeichnis kopiert und kann zur Laufzeit von der Konfigurations‑API eingelesen werden. [web:410]  
-Optional kannst du eine zusätzliche `appsettings.Development.json` anlegen und im Host als zweite Konfigurationsquelle registrieren, um Entwicklungs‑ und Produktionsumgebungen sauber zu trennen. [web:404]
+Lege im Projektstamm eine `appsettings.json` an, in der du den ConnectionString und ggf. weitere Einstellungen hinterlegst. Stelle bei den Dateieigenschaften sicher, dass der Buildvorgang auf „Inhalt“ und „In Ausgabeverzeichnis kopieren“ auf „Kopieren, wenn neuer“ steht. So kann der Generic Host die Konfiguration zur Laufzeit laden.
 
 ---
 
-# 5. Domänenmodell Person definieren (Models/Person.cs)
+# 5. Domänenmodell Person (Models/Person.cs)
 
-Nun definierst du das zentrale Domänenmodell der Anwendung.
-
-1. Lege im Ordner `Models` die Datei `Person.cs` an (der vollständige Code liegt im Repository).
-2. In dieser Datei wird die Entität `Person` mit ihren Eigenschaften definiert.
-
-Die Eigenschaft `Id` ist als ganzzahliger Primärschlüssel vorgesehen; durch die EF‑Core‑Konventionen wird eine Eigenschaft mit dem Namen `Id` automatisch als Primärschlüssel erkannt. [web:300]  
-Für die Eigenschaft `Name` wird über Datenanmerkungen sichergestellt, dass sie Pflicht ist und eine sinnvolle Längenbegrenzung besitzt, was sowohl das Datenbankschema als auch die Eingabevalidierung beeinflusst. [web:300]  
-Die Eigenschaft `Email` ist optional, erhält aber eine maximale Länge und eine einfache Plausibilitätsprüfung für E‑Mail‑Adressen über passende Attribute. [web:304]  
-Die Eigenschaft `CreatedAt` speichert den Erstellungszeitpunkt und wird beim Anlegen einer neuen Person zentral im Service mit der aktuellen UTC‑Zeit gesetzt. [web:345]
-
-An dieser Stelle kannst du im Tutorial kurz hervorheben, dass `Person.cs` das Domänenmodell in C# beschreibt, während EF Core daraus später die Tabelle `People` mit passenden Spalten, Schlüsseln und Längenbegrenzungen in der Datenbank erzeugt. [web:300]
+Definiere im Ordner `Models` die Entität `Person` mit Schlüssel (`Id`), fachlichen Eigenschaften (`Name`, `Email`, `CreatedAt`) und einer Navigation Collection `ICollection<Address> Addresses` für die 1:n‑Beziehung. Attribute für Pflichtfelder und maximale Längen sorgen dafür, dass C#‑Modell und Datenbankschema zusammenpassen. EF Core erzeugt später daraus die Tabelle `People`.
 
 ---
 
-# 6. EF‑Core‑Kontext AppDbContext anlegen (Data/AppDbContext.cs)
+# 6. Domänenmodell Address für die 1:n‑Beziehung (Models/Address.cs)
 
-Im nächsten Schritt definierst du den DbContext, der das Bindeglied zwischen Domänenmodell und Datenbank bildet.
-
-1. Lege im Ordner `Data` die Datei `AppDbContext.cs` an (der vollständige Code liegt im Repository).
-2. Die Klasse `AppDbContext` erbt von `DbContext` und erhält im Konstruktor ein `DbContextOptions<AppDbContext>`‑Objekt, damit sie über Dependency Injection konfiguriert werden kann. [web:300]
-3. Über `DbSet<Person> People` wird festgelegt, dass es in der Datenbank eine Tabelle für Personen gibt.
-
-In der überschriebenen Methode `OnModelCreating` konfigurierst du Details wie den Tabellennamen, Indizes und maximale Längen, passend zu den DataAnnotations im Modell. [web:300][web:353]  
-Optional kannst du hier auch ein Standardschema wie `dbo` für SQL Server setzen, falls nötig. [web:300]
+Lege im selben Ordner die Entität `Address` an, z.B. mit `Id`, `Street`, `PostalCode`, `City`, `Country`, dem Fremdschlüssel `PersonId` und der Navigation `Person`. Zusammengenommen bilden `Person.Addresses` und `Address.Person` eine 1:n‑Beziehung: Eine Person kann mehrere Adressen haben, jede Adresse gehört genau zu einer Person.
 
 ---
 
-# 7. Generic Host und Dependency Injection konfigurieren (App.xaml / App.xaml.cs)
+# 7. EF‑Core‑Kontext AppDbContext und 1:n‑Mapping (Data/AppDbContext.cs)
 
-Damit EF Core, Services und ViewModels sauber über Dependency Injection bereitgestellt werden, richtest du den Generic Host in deiner WPF‑App ein.
-
-1. Entferne in `App.xaml` das Attribut `StartupUri`, da der Start über den Generic Host erfolgt.
-2. Öffne `App.xaml.cs` und überschreibe die Methode `OnStartup`.
-3. Erzeuge innerhalb von `OnStartup` den Host über `Host.CreateApplicationBuilder()` und füge:
-   - die Konfiguration aus `appsettings.json` hinzu,
-   - die Logging‑Konfiguration,
-   - die Registrierung von `AppDbContext`, `PersonService`, `PersonViewModel` und `MainWindow` im DI‑Container. [web:300][web:410]
-
-Anschließend baust du den Host, erzeugst das `MainWindow` über `GetRequiredService<MainWindow>()` und zeigst es an. So erhält das Fenster sein ViewModel und alle abhängigen Services automatisch über Dependency Injection. [web:300]
+Im Ordner `Data` definierst du den `AppDbContext`, der von `DbContext` erbt und über DI konfigurierte Optionen erhält. Du fügst `DbSet<Person> People` und `DbSet<Address> Addresses` hinzu und konfigurierst in `OnModelCreating` u.a.:
+- Tabellennamen (`People`, `Addresses`)
+- maximale Längen und Indizes (z.B. Index auf `People.Name` und auf `Addresses.PersonId`)
+- die 1:n‑Beziehung mit einer Fluent‑API‑Konfiguration („eine Person hat viele Adressen, eine Adresse gehört zu genau einer Person“)
+- optional ein Standardschema wie `dbo`.
 
 ---
 
-# 8. Service‑Schicht PersonService implementieren (Services/PersonService.cs)
+# 8. Generic Host und Dependency Injection (App.xaml / App.xaml.cs)
 
-Die Service‑Schicht kapselt alle Datenzugriffe auf die Entität `Person` und hält EF Core von den ViewModels fern.
+In `App.xaml` entfernst du `StartupUri`, damit die App über den Generic Host startet. In `App.xaml.cs` überschreibst du `OnStartup`, erstellst mit `Host.CreateApplicationBuilder()` den Host, fügst die Konfiguration aus `appsettings.json` hinzu, richtest Logging ein und registrierst im DI‑Container:
+- `AppDbContext` mit `UseSqlServer(...)`
+- Services wie `PersonService`
+- ViewModels (`PersonViewModel`, `AddressViewModel`, `MainViewModel`) – typischerweise als Singleton
+- `MainWindow` (Singleton) und `UserDetailsWindow` (Transient)
 
-1. Lege im Ordner `Services` die Datei `PersonService.cs` an (der vollständige Code liegt im Repository).
-2. Der Service erhält im Konstruktor einen `AppDbContext` und stellt asynchrone Methoden bereit, zum Beispiel:
-   - `GetAllAsync()` lädt alle Personen, typischerweise sortiert nach Name.
-   - `CreateAsync(Person person)` setzt `CreatedAt`, fügt die Person hinzu und speichert die Änderungen.
-   - `UpdateAsync(Person person)` aktualisiert eine vorhandene Entität.
-   - `DeleteAsync(Person person)` entfernt eine Person aus der Datenbank. [web:300][web:345]
-
-ViewModels arbeiten ausschließlich mit dem `PersonService` und müssen keine EF‑Core‑APIs mehr kennen, was Struktur und Testbarkeit deutlich verbessert. [web:300]
+Danach baust du den Host, holst dir `MainWindow` aus dem ServiceProvider, initialisierst das `MainViewModel` (z.B. mit `InitializeAsync`) und zeigst das Fenster an.
 
 ---
 
-# 9. MVVM‑Logik im PersonViewModel (ViewModels/PersonViewModel.cs)
+# 9. Service‑Schicht PersonService (Services/PersonService.cs)
 
-Das `PersonViewModel` stellt alle Daten und Befehle für die Oberfläche bereit und bildet die Brücke zwischen UI und Service‑Schicht.
+`PersonService` kapselt alle Datenzugriffe auf Personen und erhält im Konstruktor einen `AppDbContext`. Er stellt asynchrone Methoden bereit wie:
+- `GetAllAsync()` zum Laden aller Personen,
+- `CreateAsync(Person person)` zum Anlegen (inkl. Setzen von `CreatedAt`),
+- `UpdateAsync(Person person)` zum Aktualisieren,
+- `DeleteAsync(Person person)` zum Löschen (inkl. abhängiger Adressen per Cascade Delete).
 
-1. Lege im Ordner `ViewModels` die Datei `PersonViewModel.cs` an (der vollständige Code liegt im Repository).
-2. Typische Bestandteile sind:
-   - `ObservableCollection<Person> People` als Datenquelle für die Personenliste. [web:354]
-   - `Person? SelectedPerson` als aktuell ausgewählte Person.
-   - Eigenschaften wie `Name`, `Email` und `StatusMessage` für Eingaben und Rückmeldungen.
-   - Befehle wie `LoadCommand`, `CreateCommand`, `UpdateCommand` und `DeleteCommand`, die jeweils die entsprechenden Methoden im `PersonService` aufrufen. [web:354]
-
-Die Commands werden über ein zentrales Async‑Command‑Interface (`IAsyncCommand`) und die Implementierung `AsyncRelayCommand` bereitgestellt, die im Ordner `Commands` liegen und von mehreren ViewModels wiederverwendet werden können. [web:394][web:438]  
-Durch DataBinding in der View werden Änderungen im ViewModel automatisch im UI reflektiert, und Benutzeraktionen lösen die zugehörigen Commands aus, ohne dass Code‑Behind‑Logik nötig ist. [web:354]
+ViewModels sprechen nur über diesen Service mit der Datenbank und kennen keine EF‑APIs direkt.
 
 ---
 
-# 10. View MainWindow.xaml an das ViewModel binden
+# 10. Async‑Commands für MVVM (Commands)
 
-Zum Schluss verbindest du das `MainWindow` mit dem `PersonViewModel` und richtest die Bindings ein.
-
-1. Öffne `MainWindow.xaml` und definiere:
-   - TextBoxen für `Name` und `Email`, deren `Text`‑Eigenschaft an die gleichnamigen Properties des ViewModels gebunden ist.
-   - Buttons für Laden, Anlegen, Aktualisieren und Löschen, deren `Command`‑Eigenschaft an die jeweiligen Commands gebunden ist.
-   - Eine `ListBox` oder ein anderes Listen‑Steuerelement, deren `ItemsSource` an `People` und `SelectedItem` an `SelectedPerson` gebunden ist.
-   - Ein Status‑Element (z.B. `StatusBar` oder `TextBlock`) mit Binding auf `StatusMessage`. [web:354]
-
-2. Im Code‑Behind von `MainWindow.xaml.cs` wird nur noch der `DataContext` gesetzt, typischerweise über Dependency Injection beim Erzeugen des Fensters.  
-So bleibt das Window „dumm“ im Sinne von MVVM und kennt nur sein ViewModel, aber keine Details über EF Core oder die Datenbank. [web:438]
+Im Ordner `Commands` definierst du ein Interface `IAsyncCommand` (Erweiterung von `ICommand` mit `ExecuteAsync`) und eine Implementierung `AsyncRelayCommand`, die asynchrone Operationen kapselt, `CanExecute` berücksichtigt und Fehler handhaben kann. Diese Commands nutzt du später in `PersonViewModel` und `AddressViewModel` für alle asynchronen Aktionen (Laden, Speichern, Löschen).
 
 ---
 
-# 11. Datenbank anlegen und Anwendung testen
+# 11. PersonViewModel für CRUD auf Personen (ViewModels/PersonViewModel.cs)
 
-Zum Anlegen und Aktualisieren des Datenbankschemas kannst du die EF‑Core‑Migrations nutzen.
+`PersonViewModel` stellt die Master‑Sicht auf Personen bereit und enthält:
+- `ObservableCollection<Person> People` als Liste für das UI,
+- `Person? SelectedPerson`,
+- Eingabe‑Properties wie `Name` und `Email`,
+- eine `StatusMessage` für Rückmeldungen,
+- Async‑Commands wie `LoadCommand`, `CreateCommand`, `UpdateCommand`, `DeleteCommand`, die den `PersonService` aufrufen und `People` bzw. `SelectedPerson` aktualisieren.
 
-1. Erzeuge in der Package Manager Console eine erste Migration, die das Modell in ein Datenbankschema überführt.
-2. Spiele die Migration anschließend auf die konfigurierte Datenbank, um Tabellen und Beziehungen zu erstellen. [web:430]
+So bildet `PersonViewModel` das Bindeglied zwischen UI und Service‑Schicht und folgt strikt dem MVVM‑Muster.
 
-Alternativ kann EF Core die Datenbank beim ersten Zugriff auch programmgesteuert erstellen, zum Beispiel über `Database.EnsureCreated()` im Kontext oder an einer zentralen Stelle beim Start der Anwendung. Diese Variante eignet sich vor allem für Prototypen oder Tests, während für produktive Szenarien in der Regel Migrations (`Database.Migrate()`) empfohlen werden, da sie Schemaänderungen versioniert nachverfolgen. [web:345][web:363]
+---
+
+# 12. AddressViewModel für die 1:n‑Detailansicht (ViewModels/AddressViewModel.cs)
+
+`AddressViewModel` repräsentiert die Detailseite für Adressen zur ausgewählten Person. Typische Inhalte sind:
+- `ObservableCollection<Address> Addresses` und `Address? SelectedAddress`,
+- Formular‑Properties wie `Street`, `PostalCode`, `City`, `Country`,
+- eine Property für die aktuelle Person (z.B. `CurrentPerson`),
+- Async‑Commands `CreateAddressCommand`, `UpdateAddressCommand`, `DeleteAddressCommand`,
+- eine Methode `SetCurrentPersonAsync(Person? person)`, die `CurrentPerson` setzt und `Addresses` per Datenbankabfrage auf die Adressen dieser Person aktualisiert.
+
+Damit bildet das ViewModel die „n“-Seite der 1:n‑Beziehung ab und ist Grundlage für die Adressbearbeitung im Detailfenster.
+
+---
+
+# 13. MainViewModel als Koordinator (ViewModels/MainViewModel.cs)
+
+`MainViewModel` kapselt das Zusammenspiel zwischen Personen‑ und Adress‑Bereich. Es erhält `PersonViewModel` und `AddressViewModel` per Konstruktor‑Injection und:
+- stellt beide als Properties bereit,
+- registriert sich auf `PersonViewModel.PropertyChanged`, um bei Änderungen von `SelectedPerson` automatisch `AddressViewModel.SetCurrentPersonAsync(...)` aufzurufen,
+- bietet eine `InitializeAsync`‑Methode, die beim Start einmalig die Personenliste lädt.
+
+Damit wird bei einem Personenwechsel automatisch die passende Adressliste nachgezogen; die 1:n‑Beziehung ist nicht nur im Datenmodell, sondern auch in der UI‑Logik konsistent abgebildet.
+
+---
+
+# 14. MainWindow.xaml als Master‑View
+
+`MainWindow` verwendet `MainViewModel` als DataContext. In der XAML:
+- bindest du Eingabefelder für `Name` und `Email` an `PersonViewModel.Name` bzw. `.Email`,
+- Buttons für Neu/Laden/Update/Löschen an die Commands im `PersonViewModel`,
+- eine ListBox mit `ItemsSource="{Binding PersonViewModel.People}"` und `SelectedItem="{Binding PersonViewModel.SelectedPerson}"`,
+- eine Statuszeile an `PersonViewModel.StatusMessage`.
+
+Zusätzlich gibt es einen Button „User‑Details“, der ein `UserDetailsWindow` öffnet, sobald `SelectedPerson` nicht null ist.
+
+---
+
+# 15. UserDetailsWindow.xaml als Detail‑View der 1:n‑Beziehung
+
+`UserDetailsWindow` bindet an `AddressViewModel`, das per Konstruktor‑Injection gesetzt wird. In der XAML:
+- stehen oben Labels und TextBoxen für `Street`, `PostalCode`, `City`, `Country`,
+- daneben Buttons „Neu“, „Speichern“, „Löschen“ mit Bindings auf die Adress‑Commands,
+- darunter eine ListBox mit `ItemsSource="{Binding Addresses}"` und `SelectedItem="{Binding SelectedAddress}"`,
+- unten eine Statuszeile für meldende Texte.
+
+Dieses Fenster bildet die Adressseite der 1:n‑Beziehung visuell ab und erlaubt CRUD‑Operationen für die Adressen der aktuell gewählten Person.
+
+---
+
+# 16. Zusammenspiel von MainWindow und UserDetailsWindow
+
+Beim Klick auf „User‑Details“ im `MainWindow`:
+- prüfst du, ob eine `SelectedPerson` vorhanden ist,
+- holst dir aus DI das (als Singleton registrierte) `AddressViewModel`,
+- rufst `SetCurrentPersonAsync(SelectedPerson)` auf,
+- erzeugst per DI ein neues `UserDetailsWindow` (Transient), setzt dessen `Owner` und rufst `Show()` oder `ShowDialog()` auf.
+
+Weil Main‑ und Detailfenster dasselbe `AddressViewModel` teilen, erscheinen im `UserDetailsWindow` automatisch die Adressen der aktuell ausgewählten Person, und alle Änderungen bleiben konsistent.
+
+---
+
+# 17. Datenbank mit Migrationen anlegen
+
+Über die Package Manager Console führst du aus:
+- `Add-Migration InitialCreate` zum Erzeugen der ersten Migration basierend auf `AppDbContext` und den Entitäten `Person` und `Address`,
+- `Update-Database` zum Anwenden dieser Migration auf die konfigurierte Datenbank.
+
+Dadurch entstehen Tabellen für `People` und `Addresses` inklusive Fremdschlüssel und 1:n‑Beziehung. Wird die Datenbank später gelöscht, kannst du sie jederzeit über `Update-Database` neu aufbauen.
+
+---
+
+# 18. Anwendung starten und 1:n‑Beziehung testen
+
+Starte die Anwendung, lege im `MainWindow` einige Personen an und wähle einen Eintrag aus. Öffne das `UserDetailsWindow`, füge Adressen hinzu, bearbeite oder lösche sie und prüfe, dass:
+- jede Person ihre eigenen Adressen hat,
+- beim Wechsel der ausgewählten Person im `MainWindow` und erneutem Öffnen des Detailfensters die passenden Adressen geladen werden.
+
+Damit ist das Tutorial um eine vollständige 1:n‑Beziehung Person → Adressen erweitert, sowohl im Datenmodell (EF Core) als auch in der MVVM‑Struktur und der WPF‑Oberfläche. Der konkrete Beispielcode zu allen Klassen und XAML‑Dateien liegt im zugehörigen Repository und kann dort vollständig eingesehen werden.

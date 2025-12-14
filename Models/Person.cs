@@ -1,11 +1,11 @@
-﻿using System;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace WpfEfCoreCRUDTutorial.Models;
 
 /// <summary>
 /// Domänen-Entität „Person“ für CRUD-Operationen mit EF Core.
 /// Repräsentiert eine einzelne Person in der Anwendung und in der Tabelle "People".
+/// Wurde um eine 1:n-Beziehung zu Address erweitert (Person ↔ Addresses).
 /// </summary>
 public class Person
 {
@@ -50,4 +50,14 @@ public class Person
     /// - Als non-nullable DateTime deklariert, damit jede Person zuverlässig einen Erstellungszeitpunkt besitzt.
     /// </summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Navigation Property für die 1:n-Beziehung zu Address.
+    /// - Eine Person kann mehrere Adressen besitzen (z.B. Privatadresse, Geschäftsadresse).
+    /// - EF Core erzeugt auf Basis dieser Collection-Navigation zusammen mit Address.Person / Address.PersonId
+    ///   eine 1:n-Beziehung zwischen "People" und "Addresses".
+    /// - Die Initialisierung mit einer leeren Liste verhindert NullReferenceExceptions im Code
+    ///   und macht klar, dass die Collection immer iterierbar ist (ggf. einfach leer).
+    /// </summary>
+    public ICollection<Address> Addresses { get; set; } = new List<Address>();
 }

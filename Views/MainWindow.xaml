@@ -9,11 +9,24 @@
         Height="500"
         Width="700">
 
+    <!--
+        DataContext des MainWindow ist ein MainViewModel.
+        MainViewModel kapselt:
+        - PersonViewModel (Master: Personen)
+        - AddressViewModel (Detail: Adressen)
+        In diesem XAML wird explizit auf PersonViewModel.* gebunden,
+        da die Properties/Commands dort liegen.
+    -->
+
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <!-- Eingabebereich (Name/Email) -->
             <RowDefinition Height="Auto" />
+            <!-- CRUD-Buttons + User-Details -->
             <RowDefinition Height="Auto" />
+            <!-- Personenliste -->
             <RowDefinition Height="*" />
+            <!-- Statuszeile -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
@@ -24,63 +37,77 @@
             <Label Content="Name:"
                    Width="80"
                    VerticalAlignment="Center" />
-            <!-- TextBox bindet an ViewModel-Property Name -->
+            <!-- TextBox bindet an PersonViewModel.Name -->
             <TextBox Width="220"
                      Margin="0,0,15,0"
                      VerticalAlignment="Center"
-                     Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+                     Text="{Binding PersonViewModel.Name, UpdateSourceTrigger=PropertyChanged}" />
 
             <Label Content="Email:"
                    Width="80"
                    VerticalAlignment="Center" />
-            <!-- TextBox bindet an ViewModel-Property Email -->
+            <!-- TextBox bindet an PersonViewModel.Email -->
             <TextBox Width="220"
                      VerticalAlignment="Center"
-                     Text="{Binding Email, UpdateSourceTrigger=PropertyChanged}" />
+                     Text="{Binding PersonViewModel.Email, UpdateSourceTrigger=PropertyChanged}" />
         </StackPanel>
 
-        <!-- CRUD Buttons -->
+        <!-- CRUD Buttons + User-Details -->
         <StackPanel Grid.Row="1"
                     Orientation="Horizontal"
                     Margin="0,0,0,20">
-            <!-- Buttons rufen Commands im ViewModel auf -->
+            <!-- Buttons rufen Commands im PersonViewModel auf -->
             <Button Content="➕ Neu"
                     Margin="0,0,10,0"
-                    Command="{Binding CreateCommand}" />
+                    Command="{Binding PersonViewModel.CreateCommand}" />
 
             <Button Content="📋 Alle laden"
                     Margin="0,0,10,0"
-                    Command="{Binding LoadCommand}" />
+                    Command="{Binding PersonViewModel.LoadCommand}" />
 
             <Button Content="✏️ Update"
                     Margin="0,0,10,0"
-                    Command="{Binding UpdateCommand}" />
+                    Command="{Binding PersonViewModel.UpdateCommand}" />
 
             <Button Content="🗑️ Löschen"
-                    Command="{Binding DeleteCommand}" />
+                    Margin="0,0,10,0"
+                    Command="{Binding PersonViewModel.DeleteCommand}" />
+
+            <!-- Öffnet ein separates Detailfenster für Adressen zur ausgewählten Person.
+                 Die Logik liegt im Code-Behind (UserDetailsButton_Click),
+                 der wiederum über DI ein UserDetailsWindow + AddressViewModel erzeugt.
+                 AddressViewModel hängt also nicht direkt an diesem XAML,
+                 sondern wird im separaten Fenster genutzt. -->
+            <Button Content="User-Details"
+                    Margin="10,0,0,0"
+                    Click="UserDetailsButton_Click" />
         </StackPanel>
 
-        <!-- Liste -->
+        <!-- Liste der Personen -->
         <ListBox Grid.Row="2"
                  Margin="0,0,0,20"
-                 ItemsSource="{Binding People}"
-                 SelectedItem="{Binding SelectedPerson, Mode=TwoWay}"
+                 ItemsSource="{Binding PersonViewModel.People}"
+                 SelectedItem="{Binding PersonViewModel.SelectedPerson, Mode=TwoWay}"
                  SelectionMode="Single"
                  IsSynchronizedWithCurrentItem="True">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel Orientation="Horizontal"
                                 Margin="5">
+                        <!-- Id der Person -->
                         <TextBlock Text="{Binding Id}"
                                    Width="50"
                                    FontWeight="Bold" />
                         <TextBlock Text=" | "
                                    Margin="5,0" />
+                        <!-- Name der Person -->
                         <TextBlock Text="{Binding Name}"
                                    Width="180"
                                    Margin="5,0" />
+                        <!-- Email formatiert mit Trenner -->
                         <TextBlock Text="{Binding Email, StringFormat=' | {0}'}"
                                    Width="220" />
+                        <!-- Erstellungsdatum, kompakt formatiert -->
                         <TextBlock Text="{Binding CreatedAt, StringFormat=' | {0:dd.MM HH:mm}'}"
                                    Foreground="Gray"
                                    FontSize="11" />
@@ -91,8 +118,8 @@
 
         <!-- Status -->
         <StatusBar Grid.Row="3">
-            <!-- Bindet an StatusMessage aus dem ViewModel -->
-            <StatusBarItem Content="{Binding StatusMessage}" />
+            <!-- Bindet an StatusMessage aus dem PersonViewModel -->
+            <StatusBarItem Content="{Binding PersonViewModel.StatusMessage}" />
         </StatusBar>
     </Grid>
 </Window>

@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using WpfEfCoreCRUDTutorial.Models; // Domänen-Entitäten (z.B. Person)
+using WpfEfCoreCRUDTutorial.Models; // Domänen-Entitäten (z.B. Person, Address)
 
 namespace WpfEfCoreCRUDTutorial.Data;
 
@@ -14,19 +14,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     /// <summary>
     /// Repräsentiert die Tabelle "People" in der Datenbank.
-    /// Über dieses DbSet werden alle Personen-Abfragen und Änderungen ausgeführt (Query, Add, Update, Remove),
-    /// sodass der Rest der Anwendung nicht direkt mit SQL, sondern mit stark typisierten Objekten arbeitet.
+    /// CRUD auf <see cref="Person"/> wird über dieses DbSet ausgeführt (Query, Add, Update, Remove),
+    /// sodass auf Applikationsebene mit stark typisierten Objekten gearbeitet werden kann.
     /// </summary>
     public DbSet<Person> People { get; set; } = null!;
 
-    #endregion
+    /// <summary>
+    /// Repräsentiert die Tabelle "Addresses" in der Datenbank.
+    /// Dient zur Speicherung der 1:n-abhängigen Adressen einer Person.
+    /// </summary>
+    public DbSet<Address> Addresses { get; set; } = null!;
+
+    #endregion DBSets
 
     #region MODEL / SCHEMA CONFIGURATION
 
     /// <summary>
     /// Zentrales Modell-Mapping (Fluent API).
-    /// Hier werden Tabellenname, Indizes und Längenbegrenzungen definiert,
-    /// damit das Datenbankschema konsistent und bewusst gesteuert wird und nicht nur von Konventionen abhängt.
+    /// Hier werden Tabellenname, Indizes, Längenbegrenzungen und Beziehungen definiert,
+    /// damit das Datenbankschema bewusst gesteuert wird und nicht nur von Konventionen abhängt.
     /// Wird einmalig beim ersten Zugriff auf den Kontext aufgebaut.
     /// </summary>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -56,12 +62,47 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.Property(e => e.Email)
                   .HasMaxLength(100);
+
+            // 4. 1:n-Beziehung Person → Addresses.
+            //    Eine Person hat viele Adressen, jede Adresse gehört genau zu einer Person.
+            //    Die Beziehung wird hier explizit beschrieben, obwohl EF sie auch per Konvention
+            //    aus Person.Addresses, Address.Person und Address.PersonId ableiten könnte.
+            entity
+                .HasMany(p => p.Addresses)          // Navigation von Person zur Collection Address
+                .WithOne(a => a.Person)             // Navigation von Address zurück zur Person
+                .HasForeignKey(a => a.PersonId)     // Fremdschlüssel in der Address-Tabelle
+                .OnDelete(DeleteBehavior.Cascade);  // Wenn eine Person gelöscht wird, werden alle zugehörigen Adressen mit gelöscht.
+        });
+
+        // ADDRESS TABLE CONFIGURATION
+        modelBuilder.Entity<Address>(entity =>
+        {
+            // 1. Tabellennamen explizit festlegen.
+            entity.ToTable("Addresses");
+
+            // 2. String-Längen konsistent zu den DataAnnotations setzen.
+            entity.Property(a => a.Street)
+                  .HasMaxLength(200);
+
+            entity.Property(a => a.PostalCode)
+                  .HasMaxLength(10);
+
+            entity.Property(a => a.City)
+                  .HasMaxLength(100);
+
+            entity.Property(a => a.Country)
+                  .HasMaxLength(100);
+
+            // 3. Optional: Index auf PersonId für schnellere Joins/Abfragen nach Person.
+            entity
+                .HasIndex(a => a.PersonId)
+                .HasDatabaseName("IX_Addresses_PersonId");
         });
 
         // GLOBAL CONFIG
         // Standardschema für alle Tabellen auf "dbo" festlegen.
         // In typischen MSSQL-Szenarien ist dbo das Default-Schema; hier wird es explizit gesetzt,
-        // damit das Verhalten auch mit zukünftigen Änderungen (z.B. mehr Mandanten-Schemata) reproduzierbar bleibt.
+        // damit das Verhalten auch mit zukünftigen Änderungen (z.B. mehreren Schemata) reproduzierbar bleibt.
         modelBuilder.HasDefaultSchema("dbo");
 
         // Basis-Implementierung aufrufen, falls EF Core intern noch Konfigurationen durchführen muss
@@ -69,5 +110,5 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         base.OnModelCreating(modelBuilder);
     }
 
-    #endregion
+    #endregion MODEL / SCHEMA CONFIGURATION
 }
