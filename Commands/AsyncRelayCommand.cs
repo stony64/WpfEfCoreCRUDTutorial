@@ -17,8 +17,8 @@ public interface IAsyncCommand : ICommand
 }
 
 /// <summary>
-/// Einfache Async-Command-Implementierung.
-/// Kapselt eine asynchrone Methode (Func;Task;) und stellt sie als ICommand
+/// Async-Command-Implementierung mit optionaler CanExecute-Logik und Parameter-Unterstützung.
+/// Kapselt eine asynchrone Methode (Func<object?, Task>) …
 /// für WPF zur Verfügung. Zusätzlich wird verhindert, dass der Benutzer
 /// das gleiche Command mehrfach parallel auslöst (z.B. mehrfaches Klicken).
 /// </summary>
@@ -26,8 +26,15 @@ public class AsyncRelayCommand : IAsyncCommand
 {
     /// <summary>
     /// Delegat auf die auszuführende asynchrone Methode (z.B. LoadAsync im ViewModel).
+    /// Der Parameter kann bei Bedarf genutzt werden, häufig wird er aber ignoriert.
     /// </summary>
-    private readonly Func<Task> _execute;
+    private readonly Func<object?, Task> _execute;
+
+    /// <summary>
+    /// Optionale CanExecute-Logik.
+    /// Wenn nicht gesetzt, entscheidet nur der Ausführungsstatus (_isExecuting).
+    /// </summary>
+    private readonly Func<object?, bool>? _canExecute;
 
     /// <summary>
     /// Flag, ob das Command gerade ausgeführt wird.
@@ -36,25 +43,47 @@ public class AsyncRelayCommand : IAsyncCommand
     private bool _isExecuting;
 
     /// <summary>
-    /// Übergibt die auszuführende async-Methode beim Erzeugen des Commands.
-    /// So kann jedes ViewModel seine eigene Logik injizieren, ohne
-    /// eine eigene Command-Klasse zu schreiben.
+    /// Erzeugt ein Async-Command ohne zusätzliche CanExecute-Logik.
     /// </summary>
+    /// <param name="execute">Asynchrone Aktion, die ausgeführt werden soll.</param>
     public AsyncRelayCommand(Func<Task> execute)
+        : this(_ => execute())
     {
-        _execute = execute;
+    }
+
+    /// <summary>
+    /// Erzeugt ein Async-Command mit optionaler CanExecute-Logik und Parameter-Unterstützung.
+    /// </summary>
+    /// <param name="execute">Asynchrone Aktion, die ausgeführt werden soll.</param>
+    /// <param name="canExecute">
+    /// Optionale Bedingung, ob das Command aktuell ausgeführt werden darf
+    /// (z.B. SelectedPerson != null).
+    /// </param>
+    public AsyncRelayCommand(Func<object?, Task> execute, Func<object?, bool>? canExecute = null)
+    {
+        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        _canExecute = canExecute;
     }
 
     /// <summary>
     /// Wird von WPF (z.B. Buttons) regelmäßig abgefragt, um zu entscheiden,
     /// ob das Command aktuell ausgeführt werden darf (Button enabled/disabled).
     /// Solange _isExecuting true ist, wird CanExecute false zurückgeben.
+    /// Zusätzlich kann eine eigene CanExecute-Logik hinterlegt werden.
     /// </summary>
-    public bool CanExecute(object? parameter) => !_isExecuting;
+    public bool CanExecute(object? parameter)
+    {
+        if (_isExecuting)
+        {
+            return false;
+        }
+
+        return _canExecute?.Invoke(parameter) ?? true;
+    }
 
     /// <summary>
     /// Einstiegspunkt für WPF: ruft intern die asynchrone Ausführung auf.
-    /// Da ICommand.Execute kein Task zurückgeben kann, wird hier "fire and forget"
+    /// Da ICommand.Execute kein Task zurückgeben kann, wird hier „fire and forget“
     /// verwendet und die eigentliche Arbeit an ExecuteAsync delegiert.
     /// </summary>
     public async void Execute(object? parameter)
@@ -68,7 +97,7 @@ public class AsyncRelayCommand : IAsyncCommand
     public async Task ExecuteAsync(object? parameter = null)
     {
         // Schutz gegen parallele Aufrufe (z.B. Doppelklick auf Button).
-        if (_isExecuting)
+        if (!CanExecute(parameter))
         {
             return;
         }
@@ -77,7 +106,7 @@ public class AsyncRelayCommand : IAsyncCommand
         {
             _isExecuting = true;
             RaiseCanExecuteChanged(); // UI erfährt, dass das Command vorübergehend nicht mehr ausführbar ist.
-            await _execute();         // die eigentliche Logik (z.B. LoadAsync) aus dem ViewModel ausführen.
+            await _execute(parameter); // die eigentliche Logik (z.B. LoadAsync) aus dem ViewModel ausführen.
         }
         finally
         {

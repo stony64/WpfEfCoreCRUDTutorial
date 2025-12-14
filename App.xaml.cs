@@ -133,7 +133,7 @@ public partial class App : Application
             // Der DI-Container injiziert automatisch das AddressViewModel in UserDetailsWindow.
             // Ebenfalls Singleton, damit immer dieselbe Instanz mit demselben AddressViewModel
             // verwendet wird, solange die App läuft.
-            builder.Services.AddTransient<UserDetailsWindow>();
+            builder.Services.AddTransient<PersonAddressDetailsWindow>();
 
             #endregion 7. WINDOWS REGISTRIEREN
 

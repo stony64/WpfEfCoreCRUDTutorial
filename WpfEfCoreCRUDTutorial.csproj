@@ -34,4 +34,12 @@
     <Folder Include="Ressources\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="C:\Development\Repositories\OpenSource\WpfEfCoreCRUDTutorial\.editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="C:\Development\Repositories\OpenSource\WpfEfCoreCRUDTutorial\.editorconfig" />
+  </ItemGroup>
+
 </Project>

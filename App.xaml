@@ -14,7 +14,7 @@
      VERANTWORTLICHKEIT:
      • WPF Application Lifecycle (ohne StartupUri → Start erfolgt in App.xaml.cs via DI/Host)
      • Globale Resources (Brushes, Styles, Converter)
-     • Namespace-Definitionen für Custom Controls
+     • Namespace-Definitionen für Custom Controls (local), zukünftig nutzbar
      • Designer-Support (mc:Ignorable, d:Design*)
 
      WARUM KEIN StartupUri="MainWindow.xaml"?
@@ -34,7 +34,7 @@
          • Wartbarkeit: Design-Änderungen zentral an einer Stelle
         -->
 
-        <!-- 1️⃣ DESIGN SYSTEM: Primary Color Palette (Enterprise Branding) -->
+        <!-- 1️⃣ DESIGN SYSTEM: Primary Color Palette -->
         <SolidColorBrush x:Key="PrimaryColor" Color="#0078D4" />
         <SolidColorBrush x:Key="PrimaryColorHover" Color="#106EBE" />
         <SolidColorBrush x:Key="PrimaryColorDisabled" Color="#B3D9FF" />
@@ -44,8 +44,8 @@
         <SolidColorBrush x:Key="WarningColor" Color="#FF8C00" />
         <SolidColorBrush x:Key="ErrorColor" Color="#D13438" />
 
-        <!-- 3️⃣ GLOBAL BUTTON STYLE (Enterprise Standard)
-             Gilt für alle Buttons, sofern kein spezieller Style gesetzt wird. -->
+        <!-- 3️⃣ GLOBAL BUTTON STYLE
+             Gilt für alle Buttons, sofern kein spezieller Style mit x:Key gesetzt wird. -->
         <Style TargetType="Button">
             <Setter Property="Background" Value="{StaticResource PrimaryColor}" />
             <Setter Property="Foreground" Value="White" />

@@ -31,7 +31,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     /// <summary>
     /// Zentrales Modell-Mapping (Fluent API).
-    /// Hier werden Tabellenname, Indizes, Längenbegrenzungen und Beziehungen definiert,
+    /// Hier werden Tabellenname, Indizes, Längenbegrenzungen, Beziehungen
+    /// und Löschverhalten (z.B. Cascade Delete) definiert,
     /// damit das Datenbankschema bewusst gesteuert wird und nicht nur von Konventionen abhängt.
     /// Wird einmalig beim ersten Zugriff auf den Kontext aufgebaut.
     /// </summary>
@@ -47,7 +48,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             // 2. Nicht-uniquer Index auf Name für schnellere Suchen/Sortierungen nach Name.
             //    Typischer Use-Case: Listendarstellung nach Name sortiert oder Filterfunktionen im UI.
-            //    Ein Index kann hier die Performance deutlich verbessern, ohne Eindeutigkeit zu erzwingen.
+            //    Der Index erzwingt keine Eindeutigkeit, doppelte Namen sind weiterhin erlaubt.
             entity
                 .HasIndex(e => e.Name)
                 .HasDatabaseName("IX_People_Name");
@@ -67,11 +68,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             //    Eine Person hat viele Adressen, jede Adresse gehört genau zu einer Person.
             //    Die Beziehung wird hier explizit beschrieben, obwohl EF sie auch per Konvention
             //    aus Person.Addresses, Address.Person und Address.PersonId ableiten könnte.
+            //    OnDelete(DeleteBehavior.Cascade) stellt sicher, dass beim Löschen einer Person
+            //    alle zugehörigen Adressen automatisch mitentfernt werden.
             entity
                 .HasMany(p => p.Addresses)          // Navigation von Person zur Collection Address
                 .WithOne(a => a.Person)             // Navigation von Address zurück zur Person
                 .HasForeignKey(a => a.PersonId)     // Fremdschlüssel in der Address-Tabelle
-                .OnDelete(DeleteBehavior.Cascade);  // Wenn eine Person gelöscht wird, werden alle zugehörigen Adressen mit gelöscht.
+                .OnDelete(DeleteBehavior.Cascade);  // Cascade Delete für abhängige Adressen
         });
 
         // ADDRESS TABLE CONFIGURATION
@@ -93,7 +96,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(a => a.Country)
                   .HasMaxLength(100);
 
-            // 3. Optional: Index auf PersonId für schnellere Joins/Abfragen nach Person.
+            // 3. Index auf PersonId für schnellere Joins/Abfragen nach Person.
+            //    Typisch z.B. beim Laden aller Adressen zu einer bestimmten Person.
             entity
                 .HasIndex(a => a.PersonId)
                 .HasDatabaseName("IX_Addresses_PersonId");

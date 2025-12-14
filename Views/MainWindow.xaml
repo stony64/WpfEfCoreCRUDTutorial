@@ -5,12 +5,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:viewModels="clr-namespace:WpfEfCoreCRUDTutorial.ViewModels"
         mc:Ignorable="d"
-        Title="EF Core 9 CRUD Demo"
+        Title="WPF EF Core CRUD Demo"
         Height="500"
         Width="700">
 
     <!--
-        DataContext des MainWindow ist ein MainViewModel.
+        DataContext des MainWindow ist ein MainViewModel (gesetzt im Konstruktor).
         MainViewModel kapselt:
         - PersonViewModel (Master: Personen)
         - AddressViewModel (Detail: Adressen)
@@ -22,7 +22,7 @@
         <Grid.RowDefinitions>
             <!-- Eingabebereich (Name/Email) -->
             <RowDefinition Height="Auto" />
-            <!-- CRUD-Buttons + User-Details -->
+            <!-- CRUD-Buttons + Adress-Details -->
             <RowDefinition Height="Auto" />
             <!-- Personenliste -->
             <RowDefinition Height="*" />
@@ -52,35 +52,34 @@
                      Text="{Binding PersonViewModel.Email, UpdateSourceTrigger=PropertyChanged}" />
         </StackPanel>
 
-        <!-- CRUD Buttons + User-Details -->
+        <!-- CRUD Buttons + Adress-Details -->
         <StackPanel Grid.Row="1"
                     Orientation="Horizontal"
                     Margin="0,0,0,20">
             <!-- Buttons rufen Commands im PersonViewModel auf -->
-            <Button Content="➕ Neu"
+            <Button Content="Neu"
                     Margin="0,0,10,0"
                     Command="{Binding PersonViewModel.CreateCommand}" />
 
-            <Button Content="📋 Alle laden"
+            <Button Content="Alle laden"
                     Margin="0,0,10,0"
                     Command="{Binding PersonViewModel.LoadCommand}" />
 
-            <Button Content="✏️ Update"
+            <Button Content="Aktualisieren"
                     Margin="0,0,10,0"
                     Command="{Binding PersonViewModel.UpdateCommand}" />
 
-            <Button Content="🗑️ Löschen"
+            <Button Content="Löschen"
                     Margin="0,0,10,0"
                     Command="{Binding PersonViewModel.DeleteCommand}" />
 
             <!-- Öffnet ein separates Detailfenster für Adressen zur ausgewählten Person.
-                 Die Logik liegt im Code-Behind (UserDetailsButton_Click),
-                 der wiederum über DI ein UserDetailsWindow + AddressViewModel erzeugt.
-                 AddressViewModel hängt also nicht direkt an diesem XAML,
-                 sondern wird im separaten Fenster genutzt. -->
-            <Button Content="User-Details"
+                 Die Logik liegt im Code-Behind (AdressDetailsButton_Click),
+                 der über DI ein PersonAddressDetailsWindow erzeugt.
+                 AddressViewModel wird dort als DataContext verwendet. -->
+            <Button Content="Adressdetails"
                     Margin="10,0,0,0"
-                    Click="UserDetailsButton_Click" />
+                    Click="AdressDetailsButton_Click" />
         </StackPanel>
 
         <!-- Liste der Personen -->

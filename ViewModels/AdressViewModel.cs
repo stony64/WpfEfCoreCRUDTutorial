@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿// AddressViewModel.cs
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using WpfEfCoreCRUDTutorial.Commands;
@@ -9,23 +10,50 @@ namespace WpfEfCoreCRUDTutorial.ViewModels;
 
 /// <summary>
 /// ViewModel für die Adress-Verwaltung (Detail-Teil im Master-Detail-Szenario).
+/// Verantwortlichkeiten:
 /// - Verwaltet alle Adressen zur aktuell ausgewählten Person
 /// - Stellt Eingabefelder und Commands für CRUD-Operationen auf Address bereit
-/// Die aktuell ausgewählte Person wird von außen (MainViewModel) gesetzt.
+/// - Wird vom MainViewModel über SetCurrentPersonAsync gesteuert
+///
+/// WICHTIG:
+/// Dieses ViewModel kennt keine EF-Core-Details.
+/// Es arbeitet ausschließlich mit dem PersonService und domänenspezifischen Modellen (Address).
 /// </summary>
 public class AddressViewModel : INotifyPropertyChanged
 {
     /// <summary>
     /// Service zum Laden, Anlegen, Aktualisieren und Löschen
     /// von Personen und deren Adressen.
+    /// Die eigentliche Datenzugriffslogik liegt nicht im ViewModel.
     /// </summary>
     private readonly PersonService _personService;
 
     /// <summary>
     /// Id der aktuell ausgewählten Person, für die Adressen verwaltet werden.
     /// Wert 0 bedeutet: Es ist keine Person ausgewählt.
+    /// Der Wert wird über SetCurrentPersonAsync gesetzt.
     /// </summary>
     private int _currentPersonId;
+
+    /// <summary>
+    /// Anzeigename der aktuellen Person für das Adress-Detailfenster.
+    /// Wird im Header des PersonAddressDetailsWindow angezeigt.
+    /// </summary>
+    private string _currentPersonName = string.Empty;
+
+    /// <summary>
+    /// Öffentliche Property für den Namen der aktuellen Person.
+    /// Bindet im Detailfenster an einen TextBlock („Adressen für: {Name}“).
+    /// </summary>
+    public string CurrentPersonName
+    {
+        get => _currentPersonName;
+        set
+        {
+            _currentPersonName = value;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>
     /// Konstruktor: erhält den PersonService über Dependency Injection
@@ -37,6 +65,8 @@ public class AddressViewModel : INotifyPropertyChanged
         _personService = personService;
 
         // Commands mit den asynchronen Methoden dieses ViewModels verbinden.
+        // Die AsyncRelayCommands sorgen dafür, dass die Methoden asynchron ausgeführt werden
+        // und währenddessen die zugehörigen Buttons deaktiviert sind.
         LoadAddressesCommand = new AsyncRelayCommand(LoadAddressesAsync);
         CreateAddressCommand = new AsyncRelayCommand(CreateAddressAsync);
         UpdateAddressCommand = new AsyncRelayCommand(UpdateAddressAsync);
@@ -52,7 +82,11 @@ public class AddressViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// Alle Adressen der aktuell ausgewählten Person.
-    /// Wird z.B. an eine zweite ListBox oder ein DataGrid gebunden.
+    /// Wird z.B. an eine ListBox oder ein DataGrid gebunden.
+    ///
+    /// Beispiel in XAML:
+    ///   &lt;ListBox ItemsSource="{Binding Addresses}"
+    ///             SelectedItem="{Binding SelectedAddress}" /&gt;
     /// </summary>
     public ObservableCollection<Address> Addresses
     {
@@ -90,7 +124,7 @@ public class AddressViewModel : INotifyPropertyChanged
                 PostalCode = value.PostalCode ?? string.Empty;
                 City = value.City;
                 Country = value.Country ?? string.Empty;
-                StatusMessage = $"🏠 Adresse ausgewählt: {value.Street}, {value.City}";
+                StatusMessage = $"Adresse ausgewählt: {value.Street}, {value.City}.";
             }
             else
             {
@@ -99,7 +133,7 @@ public class AddressViewModel : INotifyPropertyChanged
                 PostalCode = string.Empty;
                 City = string.Empty;
                 Country = string.Empty;
-                StatusMessage = "📋 Bitte Adresse auswählen oder neu anlegen";
+                StatusMessage = "Bitte Adresse auswählen oder neu anlegen.";
             }
         }
     }
@@ -187,6 +221,9 @@ public class AddressViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// Statuszeile für adressbezogene Meldungen (Laden, Fehler, Erfolg).
+    ///
+    /// Beispiel in XAML:
+    ///   &lt;StatusBarItem Content="{Binding StatusMessage}" /&gt;
     /// </summary>
     public string StatusMessage
     {
@@ -229,7 +266,12 @@ public class AddressViewModel : INotifyPropertyChanged
     /// <summary>
     /// Wird vom aufrufenden MainViewModel gesetzt,
     /// wenn der Benutzer im PersonViewModel eine andere Person auswählt.
-    /// Lädt anschließend die zugehörigen Adressen.
+    ///
+    /// Ablauf:
+    /// - Setzt die interne _currentPersonId
+    /// - Setzt CurrentPersonName für die Anzeige im Detailfenster
+    /// - Lädt die zugehörigen Adressen über LoadAddressesAsync
+    /// - oder leert die Listen, wenn person == null ist
     /// </summary>
     /// <param name="person">Die aktuell ausgewählte Person oder null.</param>
     public async Task SetCurrentPersonAsync(Person? person)
@@ -237,6 +279,7 @@ public class AddressViewModel : INotifyPropertyChanged
         if (person is null)
         {
             _currentPersonId = 0;
+            CurrentPersonName = string.Empty;
             Addresses = new ObservableCollection<Address>();
             SelectedAddress = null;
             StatusMessage = "Keine Person ausgewählt – keine Adressen.";
@@ -244,12 +287,13 @@ public class AddressViewModel : INotifyPropertyChanged
         }
 
         _currentPersonId = person.Id;
+        CurrentPersonName = person.Name;
         await LoadAddressesAsync();
     }
 
     #endregion Öffentliche API für MainViewModel
 
-    #region Command-Methoden
+    #region Command-Methoden (Business-Logik für Adress-Buttons)
 
     /// <summary>
     /// Lädt alle Adressen zur aktuellen Person.
@@ -265,9 +309,16 @@ public class AddressViewModel : INotifyPropertyChanged
             return;
         }
 
-        var addresses = await _personService.GetAddressesForPersonAsync(_currentPersonId);
-        Addresses = new ObservableCollection<Address>(addresses);
-        StatusMessage = $"📋 {Addresses.Count} Adressen geladen";
+        try
+        {
+            var addresses = await _personService.GetAddressesForPersonAsync(_currentPersonId);
+            Addresses = new ObservableCollection<Address>(addresses);
+            StatusMessage = $"{Addresses.Count} Adressen geladen.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Laden der Adressen: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -278,13 +329,13 @@ public class AddressViewModel : INotifyPropertyChanged
     {
         if (_currentPersonId == 0)
         {
-            StatusMessage = "⚠ Bitte zuerst eine Person auswählen";
+            StatusMessage = "Bitte zuerst eine Person auswählen.";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(Street) || string.IsNullOrWhiteSpace(City))
         {
-            StatusMessage = "⚠ Straße und Ort sind Pflichtfelder";
+            StatusMessage = "Straße und Ort sind Pflichtfelder.";
             return;
         }
 
@@ -297,14 +348,21 @@ public class AddressViewModel : INotifyPropertyChanged
             Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim()
         };
 
-        await _personService.AddAddressAsync(address);
-        await LoadAddressesAsync();
+        try
+        {
+            await _personService.AddAddressAsync(address);
+            await LoadAddressesAsync();
 
-        StatusMessage = $"➕ Adresse hinzugefügt: {address.Street}, {address.City}";
-        Street = string.Empty;
-        PostalCode = string.Empty;
-        City = string.Empty;
-        Country = string.Empty;
+            StatusMessage = $"Adresse hinzugefügt: {address.Street}, {address.City}.";
+            Street = string.Empty;
+            PostalCode = string.Empty;
+            City = string.Empty;
+            Country = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Anlegen der Adresse: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -314,13 +372,13 @@ public class AddressViewModel : INotifyPropertyChanged
     {
         if (SelectedAddress is null)
         {
-            StatusMessage = "⚠ Bitte eine Adresse auswählen";
+            StatusMessage = "Bitte eine Adresse auswählen.";
             return;
         }
 
         if (string.IsNullOrWhiteSpace(Street) || string.IsNullOrWhiteSpace(City))
         {
-            StatusMessage = "⚠ Straße und Ort sind Pflichtfelder";
+            StatusMessage = "Straße und Ort sind Pflichtfelder.";
             return;
         }
 
@@ -329,10 +387,20 @@ public class AddressViewModel : INotifyPropertyChanged
         SelectedAddress.City = City.Trim();
         SelectedAddress.Country = string.IsNullOrWhiteSpace(Country) ? null : Country.Trim();
 
-        await _personService.UpdateAddressAsync(SelectedAddress);
-        await LoadAddressesAsync();
+        var streetBefore = SelectedAddress.Street;
+        var cityBefore = SelectedAddress.City;
 
-        StatusMessage = $"✏️ Adresse aktualisiert: {SelectedAddress.Street}, {SelectedAddress.City}";
+        try
+        {
+            await _personService.UpdateAddressAsync(SelectedAddress);
+            await LoadAddressesAsync();
+
+            StatusMessage = $"Adresse aktualisiert: {streetBefore}, {cityBefore}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Aktualisieren der Adresse: {ex.Message}";
+        }
     }
 
     /// <summary>
@@ -342,22 +410,32 @@ public class AddressViewModel : INotifyPropertyChanged
     {
         if (SelectedAddress is null)
         {
-            StatusMessage = "⚠ Bitte eine Adresse auswählen";
+            StatusMessage = "Bitte eine Adresse auswählen.";
             return;
         }
 
-        await _personService.DeleteAddressAsync(SelectedAddress);
-        await LoadAddressesAsync();
+        var street = SelectedAddress.Street;
+        var city = SelectedAddress.City;
 
-        StatusMessage = "🗑️ Adresse gelöscht";
-        Street = string.Empty;
-        PostalCode = string.Empty;
-        City = string.Empty;
-        Country = string.Empty;
-        SelectedAddress = null;
+        try
+        {
+            await _personService.DeleteAddressAsync(SelectedAddress);
+            await LoadAddressesAsync();
+
+            StatusMessage = $"Adresse gelöscht: {street}, {city}.";
+            Street = string.Empty;
+            PostalCode = string.Empty;
+            City = string.Empty;
+            Country = string.Empty;
+            SelectedAddress = null;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Löschen der Adresse: {ex.Message}";
+        }
     }
 
-    #endregion Command-Methoden
+    #endregion Command-Methoden (Business-Logik für Adress-Buttons)
 
     #region INotifyPropertyChanged
 

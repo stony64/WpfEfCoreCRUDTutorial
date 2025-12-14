@@ -1,10 +1,11 @@
-﻿<Window x:Class="WpfEfCoreCRUDTutorial.UserDetailsWindow"
+﻿<!-- PersonAddressDetailsWindow.xaml -->
+<Window x:Class="WpfEfCoreCRUDTutorial.PersonAddressDetailsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         mc:Ignorable="d"
-        Title="User-Details (Adressen)"
+        Title="Adressdetails"
         Height="450"
         Width="800">
 
@@ -12,9 +13,13 @@
         Dieses Fenster arbeitet mit dem AddressViewModel als DataContext.
         Es zeigt alle Adressen zur aktuell ausgewählten Person an und erlaubt
         deren Bearbeitung (Neu, Speichern, Löschen).
+        Die Zuordnung zur Person (PersonId + CurrentPersonName) wird vor dem Öffnen
+        im MainWindow/MainViewModel vorgenommen.
     -->
     <Grid Margin="8">
         <Grid.RowDefinitions>
+            <!-- Kopfbereich: ausgewählte Person -->
+            <RowDefinition Height="Auto" />
             <!-- Eingabebereich + Buttons -->
             <RowDefinition Height="Auto" />
             <!-- Adressliste -->
@@ -23,14 +28,25 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Eingabebereich für eine Adresse -->
+        <!-- Kopf: ausgewählte Person anzeigen -->
         <StackPanel Grid.Row="0"
+                    Orientation="Horizontal"
+                    Margin="0,0,0,8">
+            <TextBlock Text="Adressen für:"
+                       FontWeight="Bold"
+                       Margin="0,0,8,0" />
+            <TextBlock Text="{Binding CurrentPersonName}"
+                       FontWeight="Bold" />
+        </StackPanel>
+
+        <!-- Eingabebereich für eine Adresse -->
+        <StackPanel Grid.Row="1"
                     Orientation="Horizontal"
                     Margin="0,0,0,8">
 
             <!-- Straße -->
             <StackPanel Margin="0,0,8,0">
-                <!-- Beschriftung statt Header-Property (TextBox hat in WPF kein Header) -->
+                <!-- Beschriftung statt Header-Property -->
                 <TextBlock Text="Straße"
                            Margin="0,0,0,2" />
                 <!-- Bindet an Street im AddressViewModel -->
@@ -86,7 +102,7 @@
         </StackPanel>
 
         <!-- Liste der Adressen zur aktuellen Person -->
-        <ListBox Grid.Row="1"
+        <ListBox Grid.Row="2"
                  ItemsSource="{Binding Addresses}"
                  SelectedItem="{Binding SelectedAddress, Mode=TwoWay}"
                  Margin="0,0,0,8">
@@ -97,7 +113,8 @@
                         <!-- Straße -->
                         <TextBlock Text="{Binding Street}"
                                    Width="220" />
-                        <TextBlock Text=" | " Margin="4,0" />
+                        <TextBlock Text=" | "
+                                   Margin="4,0" />
 
                         <!-- PLZ + Ort -->
                         <TextBlock>
@@ -105,7 +122,8 @@
                             <Run Text=" " />
                             <Run Text="{Binding City}" />
                         </TextBlock>
-                        <TextBlock Text=" | " Margin="4,0" />
+                        <TextBlock Text=" | "
+                                   Margin="4,0" />
 
                         <!-- Land (optional) -->
                         <TextBlock Text="{Binding Country}" />
@@ -115,7 +133,7 @@
         </ListBox>
 
         <!-- Statuszeile für Adressmeldungen -->
-        <StatusBar Grid.Row="2">
+        <StatusBar Grid.Row="3">
             <!-- Bindet an StatusMessage aus AddressViewModel -->
             <StatusBarItem Content="{Binding StatusMessage}" />
         </StatusBar>

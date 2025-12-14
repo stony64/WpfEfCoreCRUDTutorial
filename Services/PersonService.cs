@@ -37,44 +37,43 @@ public class PersonService
     /// Optional können die zugehörigen Adressen direkt mitgeladen werden
     /// (Eager Loading), wenn das UI ein Master-Detail-Szenario benötigt.
     /// Async-Variante vermeidet UI-Blockaden in WPF.
+    /// Für reine Anzeigezwecke werden die Entitäten als No-Tracking geladen,
+    /// um den Change-Tracker zu entlasten.
     /// </summary>
-    /// <param name="includeAddresses">
-    /// true = Adressen werden per Include mitgeladen (Person + Addresses),
-    /// false = es werden nur Person-Daten geladen (Addresses können später nachgeladen werden).
-    /// </param>
-    /// <returns>Liste aller Personen aus der Datenbank.</returns>
     public async Task<List<Person>> GetAllAsync(bool includeAddresses = false)
     {
         IQueryable<Person> query = _context.People;
 
         if (includeAddresses)
         {
-            // Eager Loading der Adressen, damit im UI ohne weitere DB-Abfragen
-            // auf Person.Addresses zugegriffen werden kann.
             query = query.Include(p => p.Addresses);
         }
 
+        query = query.AsNoTracking();
+
         return await query
-            .OrderBy(p => p.Name)           // Sortierung zentral hier, damit alle Aufrufer konsistent dieselbe Reihenfolge erhalten.
-            .ToListAsync()                  // Datenbankzugriff als asynchrone Operation.
-            .ConfigureAwait(false);         // Verhindert Deadlocks in bestimmten Synchronisierungskontexten, ist in WPF aber vor allem „best practice“.
+            .OrderBy(p => p.Name)
+            .ToListAsync()
+            .ConfigureAwait(false);
     }
 
     /// <summary>
     /// Lädt eine einzelne Person anhand der Id.
     /// Optional können auch die zugehörigen Adressen mitgeladen werden.
+    /// Für reine Anzeigezwecke kann das Ergebnis ebenfalls ohne Tracking geladen werden.
     /// </summary>
-    /// <param name="id">Primärschlüssel der Person.</param>
-    /// <param name="includeAddresses">
-    /// true = Adressen werden mitgeladen, false = nur Person-Stammdaten.
-    /// </param>
-    public async Task<Person?> GetByIdAsync(int id, bool includeAddresses = false)
+    public async Task<Person?> GetByIdAsync(int id, bool includeAddresses = false, bool asNoTracking = true)
     {
         IQueryable<Person> query = _context.People;
 
         if (includeAddresses)
         {
             query = query.Include(p => p.Addresses);
+        }
+
+        if (asNoTracking)
+        {
+            query = query.AsNoTracking();
         }
 
         return await query
@@ -88,47 +87,38 @@ public class PersonService
     ///   damit nicht jedes ViewModel an diese Regel denken muss.
     /// - Erwartet ein bereits validiertes <see cref="Person"/>-Objekt (z.B. durch ViewModel/Validation).
     /// </summary>
-    /// <param name="person">Neue Person, die angelegt werden soll.</param>
     public async Task CreateAsync(Person person)
     {
-        // CreatedAt immer zentral hier setzen:
-        // So ist garantiert, dass jeder Datensatz einen konsistent ermittelten Zeitstempel bekommt
-        // und diese Logik nicht mehrfach im UI kopiert werden muss.
         person.CreatedAt = DateTime.UtcNow;
 
-        _context.People.Add(person);        // Entity dem Change-Tracker hinzufügen (State = Added).
-        await _context.SaveChangesAsync()   // Eine Transaktion für alle ausstehenden Änderungen ausführen.
-            .ConfigureAwait(false);
+        _context.People.Add(person);
+        await _context.SaveChangesAsync().ConfigureAwait(false);
     }
 
     /// <summary>
     /// Aktualisiert eine bestehende Person in der Datenbank.
     /// Die übergebene Instanz sollte in der Regel aus dem aktuellen Kontext stammen
-    /// (z.B. via GetAllAsync oder GetByIdAsync geladen), damit sie bereits getrackt ist.
+    /// (z.B. via GetAllAsync oder GetByIdAsync ohne AsNoTracking geladen).
+    /// Falls eine „entkoppelte“ Instanz übergeben wird, wird sie explizit angehängt.
     /// </summary>
-    /// <param name="person">Geänderte Person.</param>
     public async Task UpdateAsync(Person person)
     {
-        // In deinem Szenario ist die Person-Instanz typischerweise bereits „tracked“,
-        // weil sie über den DbContext geladen wurde und im ViewModel weitergereicht wird.
-        // Deshalb reicht SaveChangesAsync, EF erkennt die geänderten Properties automatisch.
-        //
-        // Würdest du eine „entkoppelte“ (detached) Instanz übergeben, müsstest du sie explizit anhängen:
-        // _context.Entry(person).State = EntityState.Modified;
+        if (_context.Entry(person).State == EntityState.Detached)
+        {
+            _context.Attach(person);
+            _context.Entry(person).State = EntityState.Modified;
+        }
 
         await _context.SaveChangesAsync().ConfigureAwait(false);
     }
 
     /// <summary>
     /// Löscht eine bestehende Person aus der Datenbank.
-    /// Durch das in AppDbContext konfigurierte DeleteBehavior.Cascade
-    /// werden automatisch alle zugehörigen Adressen mit gelöscht.
+    /// Durch das im AppDbContext konfigurierte DeleteBehavior.Cascade
+    /// werden in der Datenbank automatisch alle zugehörigen Adressen mit gelöscht.
     /// </summary>
-    /// <param name="person">Zu löschende Person.</param>
     public async Task DeleteAsync(Person person)
     {
-        // Remove markiert die Entität im Change-Tracker als Deleted.
-        // Die tatsächliche Löschung in der Datenbank erfolgt erst bei SaveChangesAsync.
         _context.People.Remove(person);
         await _context.SaveChangesAsync().ConfigureAwait(false);
     }
@@ -140,9 +130,9 @@ public class PersonService
     /// <summary>
     /// Fügt einer bestehenden Person eine neue Adresse hinzu.
     /// - Setzt CreatedAt zentral hier.
-    /// - Erwartet, dass PersonId korrekt gesetzt ist oder Person referenziert wird.
+    /// - Erwartet, dass PersonId korrekt gesetzt ist (oder alternativ die Navigation Person),
+    ///   damit die Adresse der richtigen Person zugeordnet werden kann.
     /// </summary>
-    /// <param name="address">Neue Adresse, die der Person zugeordnet werden soll.</param>
     public async Task AddAddressAsync(Address address)
     {
         address.CreatedAt = DateTime.UtcNow;
@@ -156,24 +146,29 @@ public class PersonService
     /// Diese Methode ist nützlich, wenn du im UI eine Detail-Ansicht für Adressen
     /// zur ausgewählten Person anzeigen möchtest.
     /// </summary>
-    /// <param name="personId">Primärschlüssel der Person.</param>
     public async Task<List<Address>> GetAddressesForPersonAsync(int personId)
     {
         return await _context.Addresses
             .Where(a => a.PersonId == personId)
-            .OrderBy(a => a.City).ThenBy(a => a.Street) // einfache, nachvollziehbare Sortierung
+            .OrderBy(a => a.City).ThenBy(a => a.Street)
+            .AsNoTracking()
             .ToListAsync()
             .ConfigureAwait(false);
     }
 
     /// <summary>
     /// Aktualisiert eine bestehende Adresse.
-    /// Die Instanz sollte idealerweise aus dem aktuellen Kontext stammen,
-    /// damit nur SaveChangesAsync notwendig ist.
+    /// Die Instanz sollte idealerweise aus dem aktuellen Kontext stammen;
+    /// falls sie detached ist, wird sie explizit angehängt.
     /// </summary>
-    /// <param name="address">Geänderte Adresse.</param>
     public async Task UpdateAddressAsync(Address address)
     {
+        if (_context.Entry(address).State == EntityState.Detached)
+        {
+            _context.Attach(address);
+            _context.Entry(address).State = EntityState.Modified;
+        }
+
         await _context.SaveChangesAsync().ConfigureAwait(false);
     }
 
@@ -182,7 +177,6 @@ public class PersonService
     /// Hat keinen Einfluss auf die verknüpfte Person;
     /// nur der Adressdatensatz wird entfernt.
     /// </summary>
-    /// <param name="address">Zu löschende Adresse.</param>
     public async Task DeleteAddressAsync(Address address)
     {
         _context.Addresses.Remove(address);

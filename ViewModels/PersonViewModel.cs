@@ -9,17 +9,21 @@ namespace WpfEfCoreCRUDTutorial.ViewModels;
 
 /// <summary>
 /// ViewModel für die Personenverwaltung (Master-Teil im Master-Detail-Szenario).
-/// - Hält die Liste aller Personen
+/// Verantwortlichkeiten:
+/// - Hält die Liste aller Personen (People)
 /// - Nimmt Eingaben für Name/Email entgegen
 /// - Bietet Commands für Laden, Erstellen, Aktualisieren, Löschen
-/// Die Adressen zur ausgewählten Person werden im AddressViewModel verwaltet und
-/// über das MainViewModel synchronisiert.
+/// - Meldet Änderungen an SelectedPerson, damit das MainViewModel die Address-Details nachziehen kann
+///
+/// WICHTIG:
+/// Dieses ViewModel kennt keine EF-Core-Details und keinen DbContext.
+/// Es arbeitet ausschließlich mit dem PersonService und domänenspezifischen Modellen (Person).
 /// </summary>
 public class PersonViewModel : INotifyPropertyChanged
 {
     /// <summary>
-    /// Fachlicher Zugriffspunkt auf die Personen-Datenbankoperationen.
-    /// Das ViewModel kennt nur den Service und muss keine EF-Core-Details verwenden.
+    /// Fachlicher Service für alle Personen-Operationen.
+    /// Wird per Dependency Injection bereitgestellt (siehe App.xaml.cs).
     /// </summary>
     private readonly PersonService _personService;
 
@@ -34,6 +38,8 @@ public class PersonViewModel : INotifyPropertyChanged
 
         // Commands mit den asynchronen Methoden dieses ViewModels verbinden.
         // Dadurch bleibt die UI-Logik im ViewModel und die Buttons rufen nur Commands auf.
+        // Die AsyncRelayCommands sorgen dafür, dass die Methoden asynchron ausgeführt werden
+        // und währenddessen der Button deaktiviert ist (kein mehrfaches Klicken).
         LoadCommand = new AsyncRelayCommand(LoadAsync);
         CreateCommand = new AsyncRelayCommand(CreateAsync);
         UpdateCommand = new AsyncRelayCommand(UpdateAsync);
@@ -44,6 +50,7 @@ public class PersonViewModel : INotifyPropertyChanged
 
     /// <summary>
     /// Interne Sammlung der aktuell geladenen Personen.
+    /// Wird über die öffentliche People-Property exponiert.
     /// </summary>
     private ObservableCollection<Person> _people = new();
 
@@ -51,6 +58,10 @@ public class PersonViewModel : INotifyPropertyChanged
     /// Sammlung aller aktuell geladenen Personen.
     /// Wird in der View an die ListBox (ItemsSource) gebunden,
     /// sodass Änderungen an der Collection automatisch im UI reflektiert werden.
+    ///
+    /// Beispiel in XAML:
+    ///   &lt;ListBox ItemsSource="{Binding People}"
+    ///             SelectedItem="{Binding SelectedPerson}" /&gt;
     /// </summary>
     public ObservableCollection<Person> People
     {
@@ -70,10 +81,12 @@ public class PersonViewModel : INotifyPropertyChanged
     /// <summary>
     /// Aktuell ausgewählte Person in der UI.
     /// Wird an SelectedItem der Personen-ListBox gebunden.
-    /// Beim Setzen werden die Eingabefelder (Name/Email) und die Statuszeile synchronisiert,
-    /// sodass der Benutzer sofort sieht, welche Person gerade bearbeitet wird.
-    /// Das AddressViewModel wird über das MainViewModel informiert (dort via PropertyChanged-Subscription),
-    /// nicht direkt von hier aus.
+    ///
+    /// Beim Setzen:
+    /// - werden die Eingabefelder (Name/Email) mit den Werten der Person gefüllt,
+    /// - die Statuszeile wird aktualisiert,
+    /// - über PropertyChanged("SelectedPerson") kann das MainViewModel reagieren
+    ///   und die Adressen für diese Person im AddressViewModel aktualisieren.
     /// </summary>
     public Person? SelectedPerson
     {
@@ -88,17 +101,17 @@ public class PersonViewModel : INotifyPropertyChanged
                 // Beim Auswählen einer Person die Eingabefelder mit deren Werten füllen.
                 Name = value.Name;
                 Email = value.Email ?? string.Empty;
-                StatusMessage = $"👆 Ausgewählt: {value.Name}";
+                StatusMessage = $"Ausgewählt: {value.Name}";
             }
             else
             {
                 // Wenn nichts ausgewählt ist, Eingabefelder und Status zurücksetzen.
                 Name = string.Empty;
                 Email = string.Empty;
-                StatusMessage = "📋 Bitte Person auswählen";
+                StatusMessage = "Bitte Person auswählen.";
             }
 
-            // WICHTIG:
+            // Hinweis:
             // Die Synchronisation der Adressen (AddressViewModel.SetCurrentPersonAsync)
             // passiert im MainViewModel, das sich auf PropertyChanged von PersonViewModel registriert.
         }
@@ -154,6 +167,11 @@ public class PersonViewModel : INotifyPropertyChanged
     /// Statuszeile unten im Fenster (StatusBar).
     /// Zeigt z.B. Ladezustände, Fehler oder Erfolgsnachrichten an,
     /// damit der Benutzer Feedback zu seiner Aktion bekommt.
+    ///
+    /// Beispiel in XAML:
+    ///   &lt;StatusBar&gt;
+    ///       &lt;StatusBarItem Content="{Binding StatusMessage}" /&gt;
+    ///   &lt;/StatusBar&gt;
     /// </summary>
     public string StatusMessage
     {
@@ -194,33 +212,53 @@ public class PersonViewModel : INotifyPropertyChanged
 
     #endregion Commands
 
-    #region Command-Methoden
+    #region Command-Methoden (Business-Logik für Buttons)
 
     /// <summary>
     /// Lädt alle Personen neu und aktualisiert die ObservableCollection.
     /// Die bisherige Collection wird komplett ersetzt, damit das UI eine saubere Aktualisierung erhält.
+    ///
+    /// Ablauf:
+    /// - Aufruf des PersonService (GetAllAsync)
+    /// - Neubefüllung der People-Collection
+    /// - Setzen einer Statusmeldung
     /// </summary>
     private async Task LoadAsync()
     {
-        // Adressen können bei Bedarf mitgeladen werden (includeAddresses = true),
-        // hier reicht aber in der Regel das Laden der Personen,
-        // weil das AddressViewModel seine Daten separat lädt.
-        var people = await _personService.GetAllAsync(includeAddresses: false);
-        People = new ObservableCollection<Person>(people);
-        StatusMessage = $"📋 {People.Count} Personen geladen";
+        try
+        {
+            // Adressen können bei Bedarf mitgeladen werden (includeAddresses = true),
+            // hier reicht aber in der Regel das Laden der Personen,
+            // weil das AddressViewModel seine Daten separat lädt.
+            var people = await _personService.GetAllAsync(includeAddresses: false);
+            People = new ObservableCollection<Person>(people);
+            StatusMessage = $"{People.Count} Personen geladen.";
+        }
+        catch (Exception ex)
+        {
+            // Einfache Fehlerbehandlung für das Tutorial:
+            // In echten Anwendungen könnte hier zusätzlich geloggt werden.
+            StatusMessage = $"Fehler beim Laden der Personen: {ex.Message}";
+        }
     }
 
     /// <summary>
     /// Erstellt eine neue Person anhand der Eingabefelder Name/Email.
     /// Führt eine einfache Validierung im ViewModel durch,
     /// bevor der Service aufgerufen wird.
+    ///
+    /// Ablauf:
+    /// - Validierung der Eingaben
+    /// - Erzeugen eines Person-Objekts
+    /// - Aufruf von PersonService.CreateAsync
+    /// - Neuladen der Liste und Zurücksetzen der Eingabefelder
     /// </summary>
     private async Task CreateAsync()
     {
         // Minimale Validierung der Benutzereingaben.
-        if (string.IsNullOrWhiteSpace(Name) || Name.Length < 2)
+        if (string.IsNullOrWhiteSpace(Name) || Name.Trim().Length < 2)
         {
-            StatusMessage = "⚠ Name erforderlich (mindestens 2 Zeichen)";
+            StatusMessage = "Name erforderlich (mindestens 2 Zeichen).";
             return;
         }
 
@@ -230,59 +268,110 @@ public class PersonViewModel : INotifyPropertyChanged
             Email = string.IsNullOrWhiteSpace(Email) ? null : Email.Trim()
         };
 
-        // Persistieren über den Service; CreatedAt wird im Service gesetzt.
-        await _personService.CreateAsync(person);
-        await LoadAsync(); // Liste nach dem Anlegen neu laden.
+        try
+        {
+            // Persistieren über den Service; CreatedAt wird im Service gesetzt.
+            await _personService.CreateAsync(person);
 
-        StatusMessage = $"➕ Neu erstellt: {person.Name} (ID: {person.Id})";
-        Name = string.Empty;
-        Email = string.Empty;
+            // Nach dem Anlegen Liste neu laden, damit die neue Person im UI sichtbar ist.
+            await LoadAsync();
+
+            StatusMessage = $"Neu erstellt: {person.Name} (ID: {person.Id}).";
+            Name = string.Empty;
+            Email = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Erstellen der Person: {ex.Message}";
+        }
     }
 
     /// <summary>
     /// Aktualisiert die ausgewählte Person mit den aktuellen Eingabefeld-Werten.
     /// Die Änderungen werden in das ausgewählte Objekt zurückgeschrieben
     /// und dann über den Service gespeichert.
+    ///
+    /// Ablauf:
+    /// - Prüfung, ob eine Person ausgewählt ist
+    /// - Validierung des Namens
+    /// - Übernahme der Eingabefeldwerte in SelectedPerson
+    /// - Aufruf von PersonService.UpdateAsync
+    /// - Neuladen der Liste
     /// </summary>
     private async Task UpdateAsync()
     {
         if (SelectedPerson is null)
         {
-            StatusMessage = "⚠ Bitte eine Person auswählen";
+            StatusMessage = "Bitte eine Person auswählen.";
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(Name) || Name.Trim().Length < 2)
+        {
+            StatusMessage = "Name erforderlich (mindestens 2 Zeichen).";
+            return;
+        }
+
+        // Eingabewerte in das Modellobjekt zurückschreiben.
         SelectedPerson.Name = Name.Trim();
         SelectedPerson.Email = string.IsNullOrWhiteSpace(Email) ? null : Email.Trim();
 
-        await _personService.UpdateAsync(SelectedPerson);
-        await LoadAsync();
+        var nameBefore = SelectedPerson.Name;
 
-        StatusMessage = $"✏️ Aktualisiert: {SelectedPerson.Name}";
+        try
+        {
+            await _personService.UpdateAsync(SelectedPerson);
+
+            // Liste neu laden, damit auch andere Eigenschaften (z.B. Sortierung)
+            // im UI aktualisiert sind.
+            await LoadAsync();
+
+            StatusMessage = $"Aktualisiert: {nameBefore}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Aktualisieren: {ex.Message}";
+        }
     }
 
     /// <summary>
     /// Löscht die aktuell ausgewählte Person.
-    /// Nach dem Löschen wird die Liste neu geladen und die Eingabefelder werden geleert.
+    /// Nach dem Löschen wird die Liste neu geladen
+    /// und die Eingabefelder werden geleert.
+    ///
+    /// Ablauf:
+    /// - Prüfung, ob eine Person ausgewählt ist
+    /// - Aufruf von PersonService.DeleteAsync
+    /// - Neuladen der Liste
+    /// - Zurücksetzen von Eingabefeldern und Auswahl
     /// </summary>
     private async Task DeleteAsync()
     {
         if (SelectedPerson is null)
         {
-            StatusMessage = "⚠ Bitte eine Person auswählen";
+            StatusMessage = "Bitte eine Person auswählen.";
             return;
         }
 
-        await _personService.DeleteAsync(SelectedPerson);
-        await LoadAsync();
+        var name = SelectedPerson.Name;
 
-        StatusMessage = $"🗑️ Gelöscht: {SelectedPerson.Name}";
-        Name = string.Empty;
-        Email = string.Empty;
-        SelectedPerson = null;
+        try
+        {
+            await _personService.DeleteAsync(SelectedPerson);
+            await LoadAsync();
+
+            StatusMessage = $"Gelöscht: {name}.";
+            Name = string.Empty;
+            Email = string.Empty;
+            SelectedPerson = null;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Fehler beim Löschen: {ex.Message}";
+        }
     }
 
-    #endregion Command-Methoden
+    #endregion Command-Methoden (Business-Logik für Buttons)
 
     #region INotifyPropertyChanged
 
@@ -296,6 +385,9 @@ public class PersonViewModel : INotifyPropertyChanged
     /// Hilfsmethode zum Auslösen von PropertyChanged.
     /// Der CallerMemberName-Parameter übernimmt automatisch den Property-Namen,
     /// sodass beim Aufruf kein String-Literal nötig ist (vermeidet Tippfehler bei Refactorings).
+    ///
+    /// Beispiel:
+    ///   Name = "Max"; → ruft OnPropertyChanged() auf → UI wird aktualisiert.
     /// </summary>
     /// <param name="propertyName">Name der geänderten Property (optional, wird i.d.R. automatisch gesetzt).</param>
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)

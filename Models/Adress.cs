@@ -20,6 +20,9 @@ public class Address
     /// Fremdschlüssel auf die zugehörige Person.
     /// - Verbindet die Adresse mit genau einer Person (1:n-Beziehung).
     /// - EF Core nutzt diese Property, um die FK-Spalte "PersonId" in der Tabelle "Addresses" zu erzeugen.
+    /// - In der DbContext-Konfiguration wird auf Basis von PersonId und Person eine
+    ///   Fremdschlüsselbeziehung "Addresses.PersonId → People.Id" erzeugt,
+    ///   sodass die Datenbank Referenzintegrität sicherstellt.
     /// </summary>
     public int PersonId { get; set; }
 
@@ -27,6 +30,9 @@ public class Address
     /// Navigation Property zur verknüpften Person.
     /// - Erlaubt das Navigieren von Address → Person im Objektmodell.
     /// - In Kombination mit Person.Addresses entsteht die vollständige 1:n-Beziehung.
+    /// - Wird beim Laden der Entität durch EF Core befüllt; die non-nullable-Deklaration
+    ///   (mit null!-Initialisierung) drückt aus, dass diese Navigation zur Laufzeit
+    ///   immer gesetzt sein soll, obwohl der Wert beim Konstruktoraufruf noch null ist.
     /// </summary>
     public Person Person { get; set; } = null!;
 
@@ -50,7 +56,7 @@ public class Address
     /// <summary>
     /// Ort / Stadt.
     /// - Pflichtfeld, da eine Adresse ohne Ort in der Regel nicht sinnvoll ist.
-    /// - Maximal 100 Zeichen, analog zur Person.Name.
+    /// - Maximal 100 Zeichen, analog zu Person.Name.
     /// </summary>
     [Required(ErrorMessage = "Ort ist erforderlich")]
     [StringLength(100, ErrorMessage = "Ort: maximal 100 Zeichen")]
@@ -70,6 +76,8 @@ public class Address
     /// - Wird analog zu Person.CreatedAt in der Service-Schicht (z.B. AddressService)
     ///   beim Anlegen mit DateTime.UtcNow gesetzt.
     /// - Non-nullable, damit jede Adresse einen nachvollziehbaren Erstellungszeitpunkt besitzt.
+    /// - Alternativ kann der Wert in OnModelCreating über einen Datenbank-Default
+    ///   (z.B. GETUTCDATE()) konfiguriert werden, wenn die Verantwortung beim Server liegen soll.
     /// </summary>
     public DateTime CreatedAt { get; set; }
 }

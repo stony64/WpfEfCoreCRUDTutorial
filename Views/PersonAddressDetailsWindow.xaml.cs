@@ -4,12 +4,14 @@ using WpfEfCoreCRUDTutorial.ViewModels;
 namespace WpfEfCoreCRUDTutorial;
 
 /// <summary>
-/// Detailfenster für Benutzerdaten (Adressen).
+/// Detailfenster für Adressdaten.
 /// - Zeigt alle Adressen zur aktuell ausgewählten Person an
 /// - Ermöglicht das Anlegen, Bearbeiten und Löschen von Adressen
 /// - Arbeitet ausschließlich mit dem AddressViewModel als DataContext
+/// Die Auswahl der Person und das initiale Laden der Adressen
+/// werden vor dem Öffnen im MainWindow/MainViewModel vorgenommen.
 /// </summary>
-public partial class UserDetailsWindow : Window
+public partial class PersonAddressDetailsWindow : Window
 {
     /// <summary>
     /// Konstruktor des Detailfensters.
@@ -24,12 +26,12 @@ public partial class UserDetailsWindow : Window
     /// Die Zuordnung zur aktuell ausgewählten Person wird vor dem Öffnen
     /// im MainWindow vorgenommen (SetCurrentPersonAsync).
     /// </param>
-    public UserDetailsWindow(AddressViewModel addressViewModel)
+    public PersonAddressDetailsWindow(AddressViewModel addressViewModel)
     {
         InitializeComponent();
 
         // AddressViewModel als DataContext setzen:
-        // Alle Bindings in UserDetailsWindow.xaml (z.B. Addresses, Street, CreateAddressCommand)
+        // Alle Bindings in PersonAddressDetailsWindow.xaml (z.B. Addresses, Street, CreateAddressCommand)
         // beziehen sich ab jetzt auf dieses Objekt.
         DataContext = addressViewModel;
 

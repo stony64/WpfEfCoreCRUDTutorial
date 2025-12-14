@@ -9,7 +9,7 @@ namespace WpfEfCoreCRUDTutorial;
 /// - Enthält keine Business- oder Datenzugriffslogik
 /// - Erhält sein MainViewModel über Dependency Injection
 /// - Bindet Personen- und Adressbereich über das kombinierte MainViewModel
-/// Zusätzlich kann von hier aus ein Detailfenster (UserDetailsWindow) geöffnet werden,
+/// Zusätzlich kann von hier aus ein Detailfenster (PersonAddressDetailsWindow) geöffnet werden,
 /// in dem Adressen zur ausgewählten Person bearbeitet werden.
 /// </summary>
 public partial class MainWindow : Window
@@ -25,10 +25,6 @@ public partial class MainWindow : Window
     /// Das <see cref="MainViewModel"/> wird vom DI-Container injiziert.
     /// Dadurch muss das Fenster nicht wissen, wie das ViewModel erzeugt oder verkabelt wird.
     /// </summary>
-    /// <param name="viewModel">
-    /// Zentrales ViewModel, das sowohl das PersonViewModel (Master)
-    /// als auch das AddressViewModel (Detail) enthält und das Zusammenspiel koordiniert.
-    /// </param>
     public MainWindow(MainViewModel viewModel)
     {
         InitializeComponent();
@@ -38,27 +34,23 @@ public partial class MainWindow : Window
         _mainViewModel = viewModel;
 
         // ViewModel als DataContext setzen:
-        // Alle Bindings in MainWindow.xaml (z.B. PersonViewModel.*, AddressViewModel.*)
+        // Alle Bindings in MainWindow.xaml (z.B. PersonViewModel.*)
         // beziehen sich ab jetzt auf dieses Objekt.
         DataContext = viewModel;
 
         // Hinweis:
-        // Die Initialisierung (Laden der Personen etc.) erfolgt aktuell in App.xaml.cs
+        // Die Initialisierung (Laden der Personen etc.) erfolgt in App.xaml.cs
         // über mainViewModel.InitializeAsync().
-        // Alternativ könnte dieser Aufruf auch hier erfolgen, um Logik näher an die View zu bringen,
-        // für dieses Tutorial wird die Startlogik jedoch bewusst im Application-Bootstrapper gebündelt.
     }
 
     /// <summary>
-    /// Event-Handler für den "User-Details"-Button.
-    /// Öffnet ein separates Fenster (UserDetailsWindow), in dem die Adressen
+    /// Event-Handler für den "Adressdetails"-Button.
+    /// Öffnet ein separates Fenster (PersonAddressDetailsWindow), in dem die Adressen
     /// zur aktuell ausgewählten Person angezeigt und bearbeitet werden können.
-    /// Implementiert Variante b): explizite Laufzeit-Prüfung auf null für App.Services.
     /// </summary>
-    private void UserDetailsButton_Click(object sender, RoutedEventArgs e)
+    private void AdressDetailsButton_Click(object sender, RoutedEventArgs e)
     {
         // Sicherstellen, dass eine Person ausgewählt ist.
-        // Ohne ausgewählte Person ergibt die Adressbearbeitung keinen Sinn.
         if (_mainViewModel.PersonViewModel.SelectedPerson is null)
         {
             MessageBox.Show(
@@ -70,7 +62,6 @@ public partial class MainWindow : Window
         }
 
         // Laufzeit-Prüfung: Wurde der DI-Container (Services) korrekt initialisiert?
-        // Das passiert normalerweise in App.OnStartup. Falls nicht, wird hier sauber abgebrochen.
         if (App.Services is null)
         {
             MessageBox.Show(
@@ -87,21 +78,19 @@ public partial class MainWindow : Window
         // und korrekt in den Lebenszyklus eingebunden ist.
         var addressViewModel = App.Services.GetRequiredService<AddressViewModel>();
 
-        // Die aktuell ausgewählte Person in das neue AddressViewModel „übergeben“,
-        // sodass dort sofort die richtigen Adressen geladen werden.
+        // Die aktuell ausgewählte Person an das AddressViewModel übergeben,
+        // damit dort sofort die richtigen Adressen geladen werden.
         _ = addressViewModel.SetCurrentPersonAsync(_mainViewModel.PersonViewModel.SelectedPerson);
 
         // Detailfenster über DI erzeugen, damit der Konstruktor das AddressViewModel
-        // automatisch injizieren kann (UserDetailsWindow(AddressViewModel vm)).
-        var detailsWindow = App.Services.GetRequiredService<UserDetailsWindow>();
+        // automatisch injizieren kann (PersonAddressDetailsWindow(AddressViewModel vm)).
+        var detailsWindow = App.Services.GetRequiredService<PersonAddressDetailsWindow>();
 
         // Owner setzen, damit das Detailfenster an das Hauptfenster „angedockt“ ist
         // (z.B. für gemeinsame Minimierung/Maximierung und Z-Order).
         detailsWindow.Owner = this;
 
-        // Fenster anzeigen. Je nach Anforderung:
-        // - Show()       → nicht-modales Fenster, Benutzer kann weiterhin im Hauptfenster arbeiten.
-        // - ShowDialog() → modales Fenster, blockiert das Hauptfenster bis zum Schließen.
+        // Fenster anzeigen.
         detailsWindow.Show();
     }
 }
